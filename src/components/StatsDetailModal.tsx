@@ -50,7 +50,7 @@ export function StatsDetailModal({
                   {selectedCategory && (
                     <button 
                       onClick={() => setSelectedCategory(null)}
-                      className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                      className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
                       <ArrowDownLeft className="rotate-45" size={18} />
                     </button>
@@ -64,7 +64,7 @@ export function StatsDetailModal({
                     setIsStatsDetailOpen(false);
                     setSelectedCategory(null);
                   }}
-                  className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
                   <X size={20} />
                 </button>
