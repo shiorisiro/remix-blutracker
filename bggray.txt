@@ -1,0 +1,11 @@
+1956:              <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-50 text-gray-500 hover:text-blu-primary rounded-full transition-colors">
+1965:                className={cn("p-1 rounded-full transition-colors", isCurrentMonth ? "opacity-30 text-gray-400" : "hover:bg-gray-50 text-gray-500 hover:text-blu-primary")}
+2196:                        : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+2311:            className="fixed inset-0 bg-gray-50 z-[150] flex flex-col"
+2340:              <div className="flex items-center justify-between bg-gray-50 rounded-full px-4 py-2 border border-gray-100">
+2428:                                <div key={cat} className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
+2817:              activeTab === tab.id ? "bg-blu-primary/10" : "hover:bg-gray-50"
+2834:            className="fixed inset-0 bg-gray-50 z-[150] flex flex-col"
+2852:            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50">
+2876:            className="fixed inset-0 bg-gray-50 z-[150] flex flex-col"
+2936:                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">

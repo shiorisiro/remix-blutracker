@@ -1,0 +1,10 @@
+{
+  "name": "Remix: bluTracker",
+  "description": "A premium monthly financial tracking application inspired by the DinarsPay dark crypto wallet mobile design, featuring high-contrast neon accents, robust PostgreSQL storage, transaction history, and smart features.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
