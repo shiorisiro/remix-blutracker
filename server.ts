@@ -27,21 +27,11 @@ async function startServer() {
       });
       const { model, contents, config } = req.body;
       
-      let response;
-      try {
-        response = await ai.models.generateContent({
-          model: model || "gemini-3.5-flash",
-          contents,
-          config
-        });
-      } catch (genAiError: any) {
-        console.warn("Primary model failed, falling back to gemini-3.1-flash-lite. Error:", genAiError.message);
-        response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents,
-          config
-        });
-      }
+      const response = await ai.models.generateContent({
+        model: model || "gemini-2.5-flash",
+        contents,
+        config
+      });
 
       res.json({ text: response.text });
     } catch (error: any) {
