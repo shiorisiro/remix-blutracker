@@ -1148,7 +1148,7 @@ ${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type ===
 
 Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan saran untuk bulan berikutnya. Berikan dalam bahasa Indonesia yang ringkas dan profesional, format plain text atau markdown sederhana.`;
 
-      const token = auth.currentUser?.getIdToken ? await auth.currentUser.getIdToken() : '';
+      const token = user?.getIdToken ? await user.getIdToken() : '';
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
@@ -1396,7 +1396,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     const timer = setTimeout(async () => {
       setIsSuggesting(true);
       try {
-        const token = auth.currentUser?.getIdToken ? await auth.currentUser.getIdToken() : '';
+        const token = user?.getIdToken ? await user.getIdToken() : '';
         const res = await fetch("/api/gemini", {
           method: "POST",
           headers: { 
@@ -1447,7 +1447,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
     setIsScanning(true);
     try {
-      const token = auth.currentUser?.getIdToken ? await auth.currentUser.getIdToken() : '';
+      const token = user?.getIdToken ? await user.getIdToken() : '';
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
