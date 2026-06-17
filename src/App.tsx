@@ -2194,7 +2194,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                     <button 
                       onClick={analyzeBusinessWithAI}
                       disabled={isAiAnalyzing}
-                      className="text-xs font-bold text-blu-primary flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                      className="text-xs font-bold text-gray-900 flex items-center gap-1 bg-[#CFFF0F] hover:bg-[#CFFF0F]/80 px-2 py-1 rounded-full transition-colors"
                     >
                       {isAiAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                       Analisis AI
@@ -2405,7 +2405,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                 </div>
                 <button 
                   onClick={() => setIsAiAnalysisModalOpen(false)}
-                  className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -2455,7 +2455,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                   </button>
                   <button 
                     onClick={() => setIsDebtModalOpen(false)}
-                    className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                    className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
                     <X size={20} />
                   </button>
