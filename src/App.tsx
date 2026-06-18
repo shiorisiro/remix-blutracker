@@ -1186,17 +1186,43 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
   const handleScanReceipt = async (base64Image: string) => {
     if (!base64Image) return;
 
-    setIsScanning(true);
-  try {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  token = data.session?.access_token || '';
-} catch (e) {
-  console.error('Session error:', e);
-  setAiError('Gagal autentikasi.');
-  setIsAiLoading(false);
-  return;
-}
+  setIsScanning(true);
+    try {                         // ← try untuk SEMUA
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const token = data.session?.access_token || '';
+
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ ... })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal AI Scan");
+
+      const extracted = JSON.parse(data.text || '{}');
+      setNewTitle(extracted.title || '');
+      setNewAmount(formatInputNumber(extracted.amount?.toString() || ''));
+      setNewType(extracted.type || 'expense');
+      setNewCategory(extracted.category || 'General');
+      setNewClassification(extracted.classification || 'personal');
+      setNewTime(format(new Date(), 'HH:mm'));
+      setIsScannerOpen(false);
+      setIsModalOpen(true);
+    } catch (error: any) {      // ← catch untuk SEMUA
+      console.error("Scanning failed:", error);
+      if (error?.message?.toLowerCase().includes('api key')) {
+         alert("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan.");
+      } else {
+         alert("Gagal memindai struk. Pastikan struk terlihat jelas dan lurus.");
+      }
+    } finally {
+      setIsScanning(false);
+    }
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
