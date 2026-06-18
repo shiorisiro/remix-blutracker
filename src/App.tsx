@@ -34,7 +34,7 @@ import {
   Lock,
   User as UserIcon
 } from 'lucide-react';
-import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, isBefore, subDays } from 'date-fns';
+import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
   BarChart, 
@@ -54,12 +54,9 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { db, localDb } from './db';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
