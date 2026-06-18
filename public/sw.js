@@ -2,9 +2,9 @@ const CACHE_NAME = 'blu-v3';
 
 // Standard files to cache immediately
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  '/remix-blutracker/',
+  '/remix-blutracker/index.html',
+  '/remix-blutracker/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
