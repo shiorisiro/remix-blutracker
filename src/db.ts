@@ -137,16 +137,36 @@ export const db = {
     if (error) throw error;
   },
 
-  async deleteTransaction(userId: string, txId: string): Promise<void> {
-    if (!isSupabaseConfigured) {
-      const items = localDb.getTransactions(userId).filter(t => t.id !== txId);
-      localDb.saveTransactions(userId, items);
-      return;
-    }
+async deleteTransaction(userId: string, txId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', txId)
+    .select(); // ← Feedback: tahu berapa row terhapus
+  
+  if (error) throw error;
+  
+  if (!data || data.length === 0) {
+    throw new Error('Transaksi tidak ditemukan atau tidak memiliki akses');
+  }
+}
 
-    const { error } = await supabase.from('transactions').delete().eq('id', txId);
-    if (error) throw error;
-  },
+// TAMBAHKAN fungsi baru untuk bulk delete:
+async deleteTransactions(userId: string, txIds: string[]): Promise<void> {
+  if (txIds.length === 0) return;
+  
+  const { data, error } = await supabase
+    .from('transactions')
+    .delete()
+    .in('id', txIds) // ← Hapus semua sekaligus!
+    .select();
+  
+  if (error) throw error;
+  
+  if (!data || data.length === 0) {
+    throw new Error('Tidak ada transaksi yang dapat dihapus');
+  }
+}
 
   async deleteAllTransactions(userId: string): Promise<void> {
     if (!isSupabaseConfigured) {
