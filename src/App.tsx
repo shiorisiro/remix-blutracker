@@ -1463,14 +1463,14 @@ const handleDeleteTransaction = async () => {
       <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
         <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
       </div>
-    ) : (
-      // Bintang di kanan (jauh dari knob yang ada di kiri)
-      <div className="absolute right-2 top-1.5 flex flex-col gap-[3px] items-end opacity-70">
-        <div className="w-[2px] h-[2px] bg-white rounded-full" />
-        <div className="w-[1.5px] h-[1.5px] bg-yellow-100 rounded-full" />
-        <div className="w-[2px] h-[2px] bg-white rounded-full" />
-      </div>
-    )}
+   ) : (
+  // Bintang di kiri (knob bulan ada di kanan)
+  <div className="absolute left-2 top-1.5 flex flex-col gap-[3px] items-start opacity-70">
+    <div className="w-[2px] h-[2px] bg-white rounded-full" />
+    <div className="w-[1.5px] h-[1.5px] bg-yellow-100 rounded-full" />
+    <div className="w-[2px] h-[2px] bg-white rounded-full" />
+  </div>
+)}
   </div>
 
   {/* Sliding knob — pakai absolute + translate untuk presisi */}
