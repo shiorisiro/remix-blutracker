@@ -1464,11 +1464,10 @@ const handleDeleteTransaction = async () => {
         <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
       </div>
    ) : (
-  // Bintang di kiri (knob bulan ada di kanan)
-  <div className="absolute left-2 top-1.5 flex flex-col gap-[3px] items-start opacity-70">
-    <div className="w-[2px] h-[2px] bg-white rounded-full" />
-    <div className="w-[1.5px] h-[1.5px] bg-yellow-100 rounded-full" />
-    <div className="w-[2px] h-[2px] bg-white rounded-full" />
+  <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
+    <span className="text-white text-[6px] leading-none">✦</span>
+    <span className="text-yellow-100 text-[4px] leading-none">✦</span>
+    <span className="text-white text-[5px] leading-none">✦</span>
   </div>
 )}
   </div>
