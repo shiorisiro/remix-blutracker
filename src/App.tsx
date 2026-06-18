@@ -1198,8 +1198,35 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ ... })
-      });
+                body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          contents: [
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Image.includes(',') ? base64Image.split(',')[1] : base64Image,
+              },
+            },
+            {
+              text: "Extract transaction details from this receipt. Return JSON with fields: title, amount (number), type (income or expense), category (Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General), and classification (personal or business).",
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                title: { type: "STRING" },
+                amount: { type: "NUMBER" },
+                type: { type: "STRING", enum: ["income", "expense"] },
+                category: { type: "STRING" },
+                classification: { type: "STRING", enum: ["personal", "business"] },
+              },
+              required: ["title", "amount", "type", "category", "classification"],
+            },
+          }
+        })
+   });
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal AI Scan");
@@ -1223,7 +1250,8 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     } finally {
       setIsScanning(false);
     }
-
+  };
+  
   const renderInsideLabels = (props: any) => {
     const { cx, cy, midAngle, innerRadius, outerRadius, name, value } = props;
     const RADIAN = Math.PI / 180;
