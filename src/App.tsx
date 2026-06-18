@@ -919,8 +919,15 @@ ${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type ===
 
 Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan saran untuk bulan berikutnya. Berikan dalam bahasa Indonesia yang ringkas dan profesional, format plain text atau markdown sederhana.`;
 
-      if (user && isSupabaseConfigured) {
-  const token = await auth.getIdToken();
+       if (user && isSupabaseConfigured) {
+    try {
+      let token = await auth.getIdToken();
+    } catch (e) {
+      console.error('Auth error:', e);
+    }
+  }
+  
+  try { 
 
       const res = await fetch("/api/gemini", {
         method: "POST",
@@ -935,7 +942,8 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
       setAiAnalysisResult(data.text);
       setIsAiAnalysisModalOpen(true);
-    } catch (error: any) {
+    } 
+  catch (error: any) {
       console.error(error);
       if (error?.message?.toLowerCase().includes('api key')) {
          setAiAnalysisResult("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan.");
