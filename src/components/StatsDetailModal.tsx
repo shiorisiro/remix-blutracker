@@ -100,7 +100,50 @@ export function StatsDetailModal({
     });
   }, [transactions, selectedMonth, isCurrentMonth]);
 
-  // 3. Data hourly yang responsif terhadap selectedMonth (untuk hari ini saja)
+  // 3. ANALISIS SALDO & ARUS KAS -> sekarang berdasarkan BULAN yang dipilih
+  const selectedMonthCashFlowData = useMemo(() => {
+    const start = startOfMonth(selectedMonth);
+    const end = isCurrentMonth ? new Date() : endOfMonth(selectedMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    // Calculate balance BEFORE this month started
+    const balanceBeforeMonth = transactions
+      .filter(t => parseISO(t.date) < start)
+      .reduce((acc, t) => {
+        if (t.type === 'income') return acc + t.amount;
+        if (t.type === 'expense') return acc - t.amount;
+        if (t.type === 'debt' && !t.isSettled) {
+          return t.debtType === 'borrow' ? acc + t.amount : acc - t.amount;
+        }
+        return acc;
+      }, 0);
+
+    let runningBalance = balanceBeforeMonth;
+
+    return days.map(day => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayIncome = transactions
+        .filter(t => t.type === 'income' && t.date === dateStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+      const dayExpense = transactions
+        .filter(t => t.type === 'expense' && t.date === dateStr)
+        .reduce((acc, t) => acc + t.amount, 0);
+      const dayDebtNet = transactions
+        .filter(t => t.type === 'debt' && !t.isSettled && t.date === dateStr)
+        .reduce((acc, t) => t.debtType === 'borrow' ? acc + t.amount : acc - t.amount, 0);
+
+      runningBalance += (dayIncome - dayExpense + dayDebtNet);
+
+      return {
+        name: format(day, 'd'),
+        balance: runningBalance,
+        income: dayIncome,
+        expense: dayExpense,
+      };
+    });
+  }, [transactions, selectedMonth, isCurrentMonth]);
+
+  // 4. Data hourly yang responsif terhadap selectedMonth (untuk hari ini saja)
   const selectedMonthHourlyData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -364,14 +407,14 @@ export function StatsDetailModal({
               </div>
             </section>
 
-            {/* === ANALISIS SALDO & ARUS KAS: LINE CHART BULANAN === */}
+            {/* === ANALISIS SALDO & ARUS KAS: LINE CHART BULANAN YANG DIPILIH === */}
             <section className="bg-[#FFFFFF] dark:bg-[#13161A] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
               <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display mb-4">
                 Analisis Saldo & Arus Kas - {format(selectedMonth, 'MMMM yyyy', { locale: id })}
               </h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={monthlyChartData} tabIndex={-1}>
+                  <ComposedChart data={selectedMonthCashFlowData} tabIndex={-1}>
                     <defs>
                       <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#CFFF0F" stopOpacity={0.1}/>
@@ -384,7 +427,7 @@ export function StatsDetailModal({
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fontSize: 9, fill: '#9ca3af' }}
-                      interval={Math.floor(monthlyChartData.length / 7)}
+                      interval={Math.floor(selectedMonthCashFlowData.length / 7)}
                     />
                     <YAxis hide domain={['auto', 'auto']} />
                     <Tooltip content={<CustomTooltip />} />
