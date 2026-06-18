@@ -1180,11 +1180,16 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     if (!base64Image) return;
 
     setIsScanning(true);
-    try {
-      let token = '';
-      if (user && isSupabaseConfigured) {
-        token = await auth.getIdToken();
-      }
+  try {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  token = data.session?.access_token || '';
+} catch (e) {
+  console.error('Session error:', e);
+  setAiError('Gagal autentikasi.');
+  setIsAiLoading(false);
+  return;
+}
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
