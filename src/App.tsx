@@ -1117,14 +1117,6 @@ const handleDeleteTransaction = async () => {
     setIsDeleting(false);  // ← TAMBAH INI
   }
 };
-    try {
-      await db.deleteTransaction(user.uid, transactionToDelete.id);
-      setTransactionToDelete(null);
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      alert('Gagal menghapus transaksi.');
-    }
-  };
 
   // AI Suggestion for Category & Classification
   useEffect(() => {
