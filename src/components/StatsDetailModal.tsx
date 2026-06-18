@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LayoutGrid, ArrowDownLeft, PieChart as PieChartIcon, TrendingUp, TrendingDown, ArrowUpRight, ArrowRight, Activity, Wallet, X } from 'lucide-react';
-import { format, parseISO, isSameMonth, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
+import { format, parseISO, isSameMonth, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, subDays, eachWeekOfInterval, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LineChart, Line, ComposedChart } from 'recharts';
 import { Transaction } from '../types';
@@ -36,6 +36,100 @@ export function StatsDetailModal({
   VariableRadiusSector,
   renderInsideLabels
 }: any) {
+
+  // === DATA LOGIC YANG DIPERBAIKI ===
+
+  // 1. Data Ringkasan Pengeluaran (Line Chart per kategori sepanjang bulan)
+  const monthlyCategoryLineData = useMemo(() => {
+    const start = startOfMonth(selectedMonth);
+    const end = isCurrentMonth ? new Date() : endOfMonth(selectedMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    return days.map(day => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayData: any = { name: format(day, 'd') };
+
+      // Hitung total per kategori untuk hari ini
+      ['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].forEach(cat => {
+        const amount = transactions
+          .filter(t => t.type === 'expense' && t.category === cat && t.date === dateStr)
+          .reduce((acc, t) => acc + t.amount, 0);
+        dayData[cat] = amount;
+      });
+
+      return dayData;
+    });
+  }, [transactions, selectedMonth, isCurrentMonth]);
+
+  // 2. Data Perbandingan Mingguan -> sekarang berdasarkan BULAN yang dipilih
+  const monthlyWeeklyComparisonData = useMemo(() => {
+    const start = startOfMonth(selectedMonth);
+    const end = isCurrentMonth ? new Date() : endOfMonth(selectedMonth);
+
+    // Ambil semua minggu dalam bulan yang dipilih
+    const weeks = eachWeekOfInterval(
+      { start, end },
+      { weekStartsOn: 1 } // Senin
+    );
+
+    return weeks.map((weekStart, index) => {
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      const actualEnd = weekEnd > end ? end : weekEnd;
+
+      const weekIncome = transactions
+        .filter(t => {
+          if (t.type !== 'income') return false;
+          const tDate = parseISO(t.date);
+          return isWithinInterval(tDate, { start: weekStart, end: actualEnd });
+        })
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      const weekExpense = transactions
+        .filter(t => {
+          if (t.type !== 'expense') return false;
+          const tDate = parseISO(t.date);
+          return isWithinInterval(tDate, { start: weekStart, end: actualEnd });
+        })
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      return {
+        name: `Mg ${index + 1}`,
+        income: weekIncome,
+        expense: weekExpense,
+      };
+    });
+  }, [transactions, selectedMonth, isCurrentMonth]);
+
+  // 3. Data hourly yang responsif terhadap selectedMonth (untuk hari ini saja)
+  const selectedMonthHourlyData = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    return hours.map(hour => {
+      const hourInt = parseInt(hour.split(':')[0]);
+      const amount = transactions
+        .filter(t => {
+          if (t.type !== 'expense' || !t.time) return false;
+          if (selectedCategory && t.category !== selectedCategory) return false;
+          const tHour = parseInt(t.time.split(':')[0]);
+          return tHour === hourInt && t.date === today;
+        })
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      return { name: hour, amount };
+    });
+  }, [transactions, selectedCategory]);
+
+  // Warna kategori untuk line chart
+  const categoryColors: Record<string, string> = {
+    'Food': '#FF6B6B',
+    'Shopping': '#4ECDC4', 
+    'Bensin': '#FFD93D',
+    'Perbaikan': '#A29BFE',
+    'Entertainment': '#6C5CE7',
+    'General': '#95afc0',
+  };
+
   return (
     <motion.div 
       initial={{ y: '100%' }}
@@ -91,9 +185,12 @@ export function StatsDetailModal({
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {!selectedCategory ? (
           <>
+            {/* === RINGKASAN PENGELUARAN: LINE CHART === */}
             <section className="bg-[#FFFFFF] dark:bg-[#13161A] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Ringkasan Pengeluaran</h3>
+                <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">
+                  {statsView === 'daily' && isCurrentMonth ? 'Pengeluaran Hari Ini (Per Jam)' : 'Pengeluaran Bulanan'}
+                </h3>
                 <div className="flex p-1 bg-gray-100 dark:bg-[#14181E] rounded-xl">
                   <button 
                     onClick={() => setStatsView('weekly')}
@@ -119,17 +216,18 @@ export function StatsDetailModal({
               </div>
 
               {statsView === 'daily' && isCurrentMonth ? (
+                /* === MODE HARI INI: Area Chart per jam === */
                 <div className="space-y-6">
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={hourlyData} tabIndex={-1}>
+                      <AreaChart data={selectedMonthHourlyData} tabIndex={-1}>
                         <defs>
                           <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#CFFF0F" stopOpacity={0.3}/>
                             <stop offset="95%" stopColor="#CFFF0F" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme => theme === 'dark' ? '#22272F' : '#F1F5F9'} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#22272F" />
                         <XAxis 
                           dataKey="name" 
                           axisLine={false} 
@@ -170,110 +268,91 @@ export function StatsDetailModal({
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center">
-                  <div className="relative h-80 w-full flex items-center justify-center">
+                /* === MODE BULANAN: Line Chart per kategori === */
+                <div className="space-y-6">
+                  <div className="h-72 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart tabIndex={-1}>
-                        {/* Center clickable area for Total */}
-                        <Pie
-                          data={[{ name: 'Total Pengeluaran', value: monthlyExpense }]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={0}
-                          outerRadius={40}
-                          dataKey="value"
-                          stroke="none"
-                          fill="transparent"
-                          isAnimationActive={false}
-                          tabIndex={-1}
-                        >
-                          <Cell key="center" fill="transparent" />
-                        </Pie>
-
-                        <Pie
-                          data={categoryPieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={85}
-                          paddingAngle={4}
-                          dataKey="value"
-                          labelLine={false}
-                          stroke="none"
-                          shape={VariableRadiusSector}
-                          tabIndex={-1}
-                        >
-                          {categoryPieData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={CATEGORY_CONFIG[entry.name]?.color || '#CFFF0F'}
-                              className="outline-none"
-                            />
-                          ))}
-                        </Pie>
-
-                        {/* Labels Layer */}
-                        <Pie
-                          data={categoryPieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={85}
-                          paddingAngle={4}
-                          dataKey="value"
-                          label={renderInsideLabels}
-                          labelLine={false}
-                          stroke="none"
-                          fill="transparent"
-                          isAnimationActive={false}
-                          pointerEvents="none"
+                      <LineChart data={monthlyCategoryLineData} tabIndex={-1}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#22272F" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 9, fill: '#9ca3af' }}
+                          interval={Math.floor(monthlyCategoryLineData.length / 7)}
                         />
-
+                        <YAxis hide />
                         <Tooltip content={<CustomTooltip />} />
-                      </PieChart>
+                        {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => (
+                          <Line
+                            key={cat}
+                            type="monotone"
+                            dataKey={cat}
+                            stroke={categoryColors[cat]}
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 3 }}
+                          />
+                        ))}
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Legend Section */}
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-6 mt-8 px-4 w-full">
-                    {categoryPieData.map((entry, index) => {
-                      const Icon = CATEGORY_CONFIG[entry.name]?.icon || LayoutGrid;
-                      const percentage = Math.round((entry.value / (monthlyExpense || 1)) * 100);
+                  {/* Legend Kategori */}
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                    {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => {
+                      const total = transactions
+                        .filter(t => t.type === 'expense' && t.category === cat && isSameMonth(parseISO(t.date), selectedMonth))
+                        .reduce((acc, t) => acc + t.amount, 0);
+                      if (total === 0) return null;
                       return (
-                        <div key={index} className="flex items-center gap-2">
-                          <div 
-                            className="w-10 h-10 rounded-xl flex items-center justify-center relative shrink-0"
-                            style={{ backgroundColor: `${CATEGORY_CONFIG[entry.name]?.color}15` }}
-                          >
-                            <Icon size={18} style={{ color: CATEGORY_CONFIG[entry.name]?.color }} />
-                            <span 
-                              className="absolute top-1 right-1 text-[7px] font-black leading-none" 
-                              style={{ color: CATEGORY_CONFIG[entry.name]?.color }}
-                            >
-                              {percentage}%
-                            </span>
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[7px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none truncate">
-                              {entry.name}
-                            </span>
-                            <span className="text-[9px] font-black text-gray-800 dark:text-white leading-none mt-1.5">
-                              {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(entry.value)}
-                            </span>
-                          </div>
+                        <div key={cat} className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: categoryColors[cat] }} />
+                          <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">{cat}</span>
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Ringkasan Total per Kategori */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Total per Kategori - {format(selectedMonth, 'MMMM yyyy', { locale: id })}</h4>
+                    <div className="space-y-2">
+                      {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => {
+                        const total = transactions
+                          .filter(t => t.type === 'expense' && t.category === cat && isSameMonth(parseISO(t.date), selectedMonth))
+                          .reduce((acc, t) => acc + t.amount, 0);
+                        if (total === 0) return null;
+                        const percentage = Math.round((total / (monthlyExpense || 1)) * 100);
+                        return (
+                          <div key={cat} className="flex justify-between items-center p-3 bg-[#F8FAFC] dark:bg-[#08090B] rounded-2xl border border-gray-100 dark:border-[#22272F]">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: categoryColors[cat] }} />
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{cat}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-gray-800 dark:text-white">{formatCurrency(total)}</span>
+                              <span className="text-[10px] text-gray-400 ml-2">({percentage}%)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
             </section>
 
+            {/* === PERBANDINGAN MINGGUAN: BERDASARKAN BULAN YANG DIPILIH === */}
             <section className="bg-[#FFFFFF] dark:bg-[#13161A] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
-              <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display mb-4">Perbandingan Mingguan</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">
+                  Perbandingan Mingguan - {format(selectedMonth, 'MMMM yyyy', { locale: id })}
+                </h3>
+              </div>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} tabIndex={-1}>
+                  <BarChart data={monthlyWeeklyComparisonData} tabIndex={-1}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#22272F" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
                     <YAxis hide />
@@ -285,8 +364,11 @@ export function StatsDetailModal({
               </div>
             </section>
 
+            {/* === ANALISIS SALDO & ARUS KAS: LINE CHART BULANAN === */}
             <section className="bg-[#FFFFFF] dark:bg-[#13161A] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
-              <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display mb-4">Analisis Saldo & Arus Kas</h3>
+              <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display mb-4">
+                Analisis Saldo & Arus Kas - {format(selectedMonth, 'MMMM yyyy', { locale: id })}
+              </h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={monthlyChartData} tabIndex={-1}>
@@ -352,6 +434,7 @@ export function StatsDetailModal({
           </>
         ) : (
           <>
+            {/* === KATEGORI TERPILIH === */}
             <section className="bg-[#FFFFFF] dark:bg-[#13161A] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
               <div className="flex flex-col space-y-4 mb-6">
                 <div className="flex justify-between items-center">
@@ -366,7 +449,7 @@ export function StatsDetailModal({
                     </p>
                     <p className="font-bold text-gray-950 dark:text-[#CFFF0F]">
                       {statsView === 'daily'
-                        ? formatCurrency(hourlyData.reduce((acc, d) => acc + d.amount, 0))
+                        ? formatCurrency(selectedMonthHourlyData.reduce((acc, d) => acc + d.amount, 0))
                         : formatCurrency(categoryChartData.reduce((acc, d) => acc + d.amount, 0))}
                     </p>
                   </div>
@@ -397,7 +480,7 @@ export function StatsDetailModal({
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   {statsView === 'daily' ? (
-                    <AreaChart data={hourlyData} tabIndex={-1}>
+                    <AreaChart data={selectedMonthHourlyData} tabIndex={-1}>
                       <defs>
                         <linearGradient id="colorAmountCat" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#CFFF0F" stopOpacity={0.3}/>
