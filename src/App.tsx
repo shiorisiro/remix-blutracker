@@ -1614,7 +1614,6 @@ const handleDeleteTransaction = async () => {
                     tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }}
                     tickFormatter={(value) => formatCurrency(value)}
 />
-<Tooltip ...>
                     <Tooltip 
   cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
   contentStyle={{ 
