@@ -866,18 +866,27 @@ export default function App() {
     }
 
     // Sorting
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === 'date') {
-        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-      } else if (sortBy === 'amount') {
-        comparison = a.amount - b.amount;
-      } else if (sortBy === 'category') {
-        comparison = a.category.localeCompare(b.category);
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
+    // Sorting
+result.sort((a, b) => {
+  let comparison = 0;
+  if (sortBy === 'date') {
+    // Bandingkan date dulu
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    comparison = dateA.localeCompare(dateB);
+    // Kalau tanggal sama, bandingkan time (HH:mm)
+    if (comparison === 0) {
+      const timeA = a.time || '00:00';
+      const timeB = b.time || '00:00';
+      comparison = timeA.localeCompare(timeB);
+    }
+  } else if (sortBy === 'amount') {
+    comparison = a.amount - b.amount;
+  } else if (sortBy === 'category') {
+    comparison = a.category.localeCompare(b.category);
+  }
+  return sortOrder === 'asc' ? comparison : -comparison;
+});
     return result;
   }, [transactions, searchQuery, filterCategory, filterClassification, sortBy, sortOrder, activeTab, selectedMonth]);
 
