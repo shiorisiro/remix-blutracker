@@ -1600,7 +1600,12 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                 <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
                   <BarChart data={chartData} tabIndex={-1}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 650, fontFamily: 'Outfit' }} />
+                   <XAxis 
+                    dataKey="name" 
+                    axisLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
+                    tickLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
+                    tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }} 
+/>
                     <Tooltip 
   cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
   contentStyle={{ 
