@@ -58,6 +58,7 @@ import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
+import { db } from './db';
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
 import { LoginPage } from './components/LoginPage';
