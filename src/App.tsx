@@ -1598,9 +1598,9 @@ const handleDeleteTransaction = async () => {
                   Detail <ChevronRight size={13} />
                 </button>
               </div>
-              <div className="h-48 w-full overflow-hidden relative">
-                <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
-                  <BarChart data={chartData} tabIndex={-1}>
+              <div className="h-56 w-full relative">  {/* hapus overflow-hidden, naikkan height */}
+                <ResponsiveContainer width="100%" height="100%">  {/* hapus minWidth/minHeight */}
+                  <BarChart data={chartData} tabIndex={-1} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
                    <XAxis 
                     dataKey="name" 
