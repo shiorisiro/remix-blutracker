@@ -1228,10 +1228,10 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
         })
    });
       
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal AI Scan");
+      const responseData = await res.json();
+      if (!res.ok) throw new Error(responseData.error || "Gagal AI Scan");
 
-      const extracted = JSON.parse(data.text || '{}');
+      const extracted = JSON.parse(responseData.text || '{}');
       setNewTitle(extracted.title || '');
       setNewAmount(formatInputNumber(extracted.amount?.toString() || ''));
       setNewType(extracted.type || 'expense');
