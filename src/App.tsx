@@ -1596,23 +1596,29 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                   Detail <ChevronRight size={13} />
                 </button>
               </div>
-              <div className="h-48 w-full">
+              <div className="h-48 w-full overflow-hidden relative">
                 <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={300}>
                   <BarChart data={chartData} tabIndex={-1}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 650, fontFamily: 'Outfit' }} />
                     <Tooltip 
-                      cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
-                      contentStyle={{ 
-                        borderRadius: '16px', 
-                        border: '1px solid',
-                        borderColor: theme === 'dark' ? '#22272F' : '#E2E8F0',
-                        background: theme === 'dark' ? '#14181E' : '#FFFFFF',
-                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                        color: theme === 'dark' ? '#FFFFFF' : '#000000',
-                        fontFamily: 'Outfit'
-                      }}
-                    />
+  cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
+  contentStyle={{ 
+    borderRadius: '16px', 
+    border: '1px solid',
+    borderColor: theme === 'dark' ? '#22272F' : '#E2E8F0',
+    background: theme === 'dark' ? '#14181E' : '#FFFFFF',
+    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+    color: theme === 'dark' ? '#FFFFFF' : '#000000',
+    fontFamily: 'Outfit'
+  }}
+  formatter={(value: number, name: string) => {
+    if (value === 0) return ['', '']; // Sembunyikan nilai 0
+    return [formatCurrency(value), name === 'income' ? 'Pemasukan' : 'Pengeluaran'];
+  }}
+  labelFormatter={(label: string) => label}
+/>
+
                     <Bar dataKey="income" fill={theme === 'dark' ? '#CFFF0F' : '#65A30D'} radius={[4, 4, 0, 0]} barSize={10} />
                     <Bar dataKey="expense" fill={theme === 'dark' ? '#FF5E5E' : '#DC2626'} radius={[4, 4, 0, 0]} barSize={10} />
                   </BarChart>
