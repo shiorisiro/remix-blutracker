@@ -36,7 +36,9 @@ export const auth = {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }
-    localDb.setUser(null);
+    localStorage.removeItem('blutracker-auth-token');
+    localStorage.removeItem('blutracker_auth_user');
+    localStorage.removeItem('blutracker_tx_local');
     notifyListeners(null);
   },
 
