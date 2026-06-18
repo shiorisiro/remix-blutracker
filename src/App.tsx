@@ -919,11 +919,8 @@ ${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type ===
 
 Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan saran untuk bulan berikutnya. Berikan dalam bahasa Indonesia yang ringkas dan profesional, format plain text atau markdown sederhana.`;
 
-      let token = '';
       if (user && isSupabaseConfigured) {
-        const token = await auth.getIdToken();
-        token = session?.access_token || '';
-      }
+  const token = await auth.getIdToken();
 
       const res = await fetch("/api/gemini", {
         method: "POST",
