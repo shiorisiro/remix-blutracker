@@ -53,18 +53,16 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from 'recharts';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { db, auth, googleProvider, handleFirestoreError, OperationType } from './firebase';
-import { collection, onSnapshot, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, serverTimestamp, getDoc, writeBatch } from './firebase-firestore-adapter';
-import { signInWithRedirect, signInWithPopup, getRedirectResult, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInWithCredential, GoogleAuthProvider } from './firebase-auth-adapter';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { db, localDb } from './db';
+import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
+import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 
 import { LoginPage } from './components/LoginPage';
@@ -108,7 +106,7 @@ export default function App() {
     }
   }, []);
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
@@ -118,14 +116,12 @@ export default function App() {
     if (!tempName.trim()) return;
     try {
       setIsSavingName(true);
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: tempName.trim() });
-        await auth.currentUser.reload();
-      }
+      await updateUserProfile({ displayName: tempName.trim() });
       setUser(prev => prev ? { ...prev, displayName: tempName.trim() } : null);
       setIsEditingName(false);
     } catch (e) {
       console.error("Gagal memperbarui nama:", e);
+      alert('Gagal memperbarui nama.');
     } finally {
       setIsSavingName(false);
     }
@@ -154,106 +150,31 @@ export default function App() {
   }, [transactions, user, authReady]);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        GoogleAuth.initialize({
-          clientId: '433471653749-p589v1t6d525jpsg96f4tkaoc081bqu7.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: true,
-        });
-      } catch (e) {
-        console.error("Gagal inisialisasi Capacitor GoogleAuth:", e);
-      }
-    }
+    // Capacitor specific initialization if needed
   }, []);
 
   useEffect(() => {
-    // Handle redirect result for Google Sign-In
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user) {
-          console.log("Redirect login success");
-        }
-      })
-      .catch((error: any) => {
-        console.log("Redirect login error:", error);
-        const errMsg = error.message || '';
-        if (error.code === 'auth/operation-not-allowed' || errMsg.includes('Unsupported provider') || errMsg.includes('provider is not enabled') || errMsg.includes('validation_failed')) {
-          setAuthError("Gagal: Fitur Login Google belum aktif di panel Supabase Anda. Hubungi Admin atau silakan aktifkan di 'Authentication > Providers > Google' pada dashboard Supabase. Alternatifnya, gunakan pilihan Masuk / Daftar dengan Alamat Email & Kata Sandi.");
-          setIsAuthModalOpen(true);
-        } else if (error.code === 'auth/invalid-credential' || errMsg.includes('invalid-credential') || errMsg.includes('invalid_grant')) {
-          setAuthError("Gagal: Konfigurasi login Google salah. Silakan masuk menggunakan Alamat Email & Kata Sandi.");
-          setIsAuthModalOpen(true);
-        } else {
-          if (!errMsg.includes('cancelled') && !errMsg.includes('popup-closed')) {
-            setAuthError(`Gagal masuk dengan Google: ${errMsg || 'Silakan coba lagi.'}`);
-            setIsAuthModalOpen(true);
-          }
-        }
-      });
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChange((currentUser) => {
       setUser(currentUser);
       setAuthReady(true);
-      
-      // Update User Doc
+
       if (currentUser) {
+        // Sync local transactions to Supabase
         const localSaved = localStorage.getItem('blutracker_transactions');
         if (localSaved) {
-            try {
-                const localTransactions: Transaction[] = JSON.parse(localSaved);
-                const unsynced = localTransactions.filter(t => t.id.length < 10 && !t.id.includes('-'));
-                if (unsynced.length > 0) {
-                   const batch = writeBatch(db);
-                   unsynced.forEach(t => {
-                     const newRef = doc(collection(db, `users/${currentUser.uid}/transactions`));
-                     const { id, ...data } = t;
-                     const dataToSave: any = {
-                        ...data,
-                        ownerId: currentUser.uid,
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                        isDebt: t.type === 'debt' ? true : false,
-                     };
-                     if (t.type === 'debt') {
-                         dataToSave.isSettled = t.isSettled || false;
-                         dataToSave.debtType = t.debtType || 'borrow';
-                     }
-                     batch.set(newRef, dataToSave);
-                   });
-                   batch.commit().then(() => {
-                        console.log("Local transactions synced to Cloud.");
-                        localStorage.removeItem('blutracker_transactions');
-                   }).catch(e => console.error("Sync error", e));
-                } else {
-                    localStorage.removeItem('blutracker_transactions');
-                }
-            } catch (e) {
-                console.error("Local sync parsing error", e);
-            }
-        }
-
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        getDoc(userDocRef).then((uDoc) => {
-          if (!uDoc.exists()) {
-            setDoc(userDocRef, {
-              email: currentUser.email,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            }).catch(error => {
-              handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.uid}`);
+          try {
+            const localTransactions = JSON.parse(localSaved);
+            // Import to Supabase
+            localTransactions.forEach(async (t: Transaction) => {
+              await db.addTransaction(currentUser.uid, t);
             });
-          } else {
-            setDoc(userDocRef, {
-              updatedAt: serverTimestamp()
-            }, { merge: true }).catch(error => {
-              handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.uid}`);
-            });
+            localStorage.removeItem('blutracker_transactions');
+          } catch (e) {
+            console.error('Sync error:', e);
           }
-        }).catch(error => {
-          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
-        });
+        }
       } else {
+        // Load from localStorage when logged out
         const saved = localStorage.getItem('blutracker_transactions');
         if (saved) {
           try {
@@ -266,105 +187,40 @@ export default function App() {
         }
       }
     });
+
     return unsubscribe;
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    
-    // Test connection first
-    getDocs(collection(db, `users/${user.uid}/transactions`)).catch(error => {
-      if(error instanceof Error && error.message.includes('the client is offline')) {
-        console.error("Please check your Firebase configuration.");
-      }
-    });
 
-    const q = collection(db, `users/${user.uid}/transactions`);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fbTransactions = snapshot.docs.map(doc => {
-        const data = doc.data();
-        let finalTx: Transaction = {
-          id: doc.id,
-          title: data.title,
-          amount: data.amount,
-          type: data.type,
-          category: data.category,
-          date: data.date,
-          time: data.time,
-          classification: data.classification,
-          ownerId: data.ownerId,
-        };
-        if (data.isDebt !== undefined) finalTx.isDebt = data.isDebt;
-        if (data.debtType !== undefined) finalTx.debtType = data.debtType;
-        if (data.isSettled !== undefined) finalTx.isSettled = data.isSettled;
-        return finalTx;
-      });
-      // Fallback initially if none exists? No, user starts fresh
-      setTransactions(fbTransactions);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/transactions`);
+    // Initial load
+    db.getTransactions(user.uid).then(setTransactions);
+
+    // Realtime subscription
+    const unsubscribe = db.subscribeToTransactions(user.uid, (newTransactions) => {
+      setTransactions(newTransactions);
     });
 
     return unsubscribe;
   }, [user]);
 
+
+
   const loginWithGoogle = async () => {
     try {
       setAuthError(null);
-      if (Capacitor.isNativePlatform()) {
-        // NATIVE APK/IOS: Use native GoogleAuth plugin
-        const googleUser = await GoogleAuth.signIn();
-        if (googleUser && googleUser.authentication?.idToken) {
-          const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-          await signInWithCredential(auth, credential);
-        } else {
-          throw new Error("Token autentikasi tidak ditemukan dari Google.");
-        }
-      } else {
-        // WEB: Try Popup first (smoother for web preview and avoids full page reload issues)
-        try {
-          await signInWithPopup(auth, googleProvider);
-        } catch (popupError: any) {
-          console.warn("Popup login failed, attempting redirect parameter fallback...", popupError);
-          if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/cancelled-popup-request') {
-            await signInWithRedirect(auth, googleProvider);
-          } else {
-            throw popupError;
-          }
-        }
-      }
+      await signInWithGoogle();
     } catch (e: any) {
-      if (
-        e.code === 'auth/popup-closed-by-user' ||
-        e.code === 'auth/cancelled-popup-request' ||
-        e.message?.includes('cancelled') ||
-        e.message?.includes('closed') ||
-        e.code === '12501' ||
-        e.message?.includes('12501')
-      ) {
-        // Silently ignore user cancellation
-        return;
-      }
       console.log("Login gagal:", e);
-      const errMsg = e.message || '';
-      if (e.code === 'auth/operation-not-allowed' || errMsg.includes('Unsupported provider') || errMsg.includes('provider is not enabled') || errMsg.includes('validation_failed')) {
-        setAuthError("Gagal: Fitur Login Google belum aktif di panel Supabase Anda. Hubungi Admin atau silakan aktifkan di 'Authentication > Providers > Google' pada dashboard Supabase. Alternatifnya, gunakan pilihan Masuk / Daftar dengan Alamat Email & Kata Sandi.");
-      } else if (e.code === 'auth/invalid-credential' || errMsg.includes('invalid-credential') || errMsg.includes('invalid_grant')) {
-        setAuthError("Gagal: Konfigurasi login Google salah. Silakan masuk menggunakan Alamat Email & Kata Sandi.");
-      } else {
-        setAuthError(`Gagal login Google: ${e.message || 'Silakan coba lagi.'}`);
-      }
+      setAuthError(`Gagal login dengan Google: ${e.message || 'Silakan coba lagi.'}`);
     }
   };
 
   const logout = async () => {
     try {
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-      } else {
-        await auth.signOut();
-      }
+      await auth.signOut();
+      setTransactions([]);
     } catch (e) {
       console.log(e);
     }
@@ -382,54 +238,23 @@ export default function App() {
     e.preventDefault();
     setIsAuthLoading(true);
     setAuthError(null);
+
     try {
-      if (isSupabaseConfigured) {
-        if (authMode === 'register') {
-          if (!authEmail.trim() || !authPassword.trim() || !authDisplayName.trim()) {
-            throw new Error("Mohon isi semua data registrasi.");
-          }
-          if (authPassword.trim().length < 6) {
-            throw new Error("Kata sandi minimal 6 karakter.");
-          }
-          const { error } = await supabase.auth.signUp({
-            email: authEmail.trim(),
-            password: authPassword.trim(),
-            options: {
-              data: {
-                display_name: authDisplayName.trim()
-              }
-            }
-          });
-          if (error) throw error;
-        } else {
-          if (!authEmail.trim() || !authPassword.trim()) {
-            throw new Error("Mohon isi email dan kata sandi.");
-          }
-          const { error } = await supabase.auth.signInWithPassword({
-            email: authEmail.trim(),
-            password: authPassword.trim()
-          });
-          if (error) throw error;
+      if (authMode === 'register') {
+        if (!authEmail.trim() || !authPassword.trim() || !authDisplayName.trim()) {
+          throw new Error("Mohon isi semua data registrasi.");
         }
+        if (authPassword.trim().length < 6) {
+          throw new Error("Kata sandi minimal 6 karakter.");
+        }
+        await signUpWithEmail(authEmail.trim(), authPassword.trim(), authDisplayName.trim());
       } else {
-        if (authMode === 'register') {
-          if (!authEmail.trim() || !authPassword.trim() || !authDisplayName.trim()) {
-            throw new Error("Mohon isi semua data registrasi.");
-          }
-          if (authPassword.trim().length < 6) {
-            throw new Error("Kata sandi minimal 6 karakter.");
-          }
-          const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim(), authPassword.trim());
-          await updateProfile(userCredential.user, {
-            displayName: authDisplayName.trim()
-          });
-        } else {
-          if (!authEmail.trim() || !authPassword.trim()) {
-            throw new Error("Mohon isi email dan kata sandi.");
-          }
-          await signInWithEmailAndPassword(auth, authEmail.trim(), authPassword.trim());
+        if (!authEmail.trim() || !authPassword.trim()) {
+          throw new Error("Mohon isi email dan kata sandi.");
         }
+        await signInWithEmail(authEmail.trim(), authPassword.trim());
       }
+
       setIsAuthModalOpen(false);
       setAuthEmail('');
       setAuthPassword('');
@@ -437,18 +262,16 @@ export default function App() {
     } catch (err: any) {
       console.log(err);
       let errMsg = err.message || '';
-      if (err.code === 'auth/email-already-in-use' || errMsg.includes('already registered') || errMsg.includes('already in use') || errMsg.includes('Email already exists')) {
+      if (errMsg.includes('already registered') || errMsg.includes('already in use')) {
         errMsg = "Email sudah digunakan oleh akun lain.";
-      } else if (err.code === 'auth/weak-password' || errMsg.includes('should be at least') || errMsg.includes('Password should be')) {
+      } else if (errMsg.includes('should be at least') || errMsg.includes('Password should be')) {
         errMsg = "Kata sandi terlalu lemah. Minimal 6 karakter.";
-      } else if (err.code === 'auth/invalid-email' || errMsg.includes('invalid email') || errMsg.includes('Invalid email') || errMsg.includes('format is invalid')) {
+      } else if (errMsg.includes('invalid email') || errMsg.includes('Invalid email')) {
         errMsg = "Format email tidak valid.";
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || errMsg.includes('Invalid login credentials') || errMsg.includes('invalid login credentials') || errMsg.includes('Invalid credentials') || errMsg.includes('invalid credentials')) {
+      } else if (errMsg.includes('Invalid login credentials') || errMsg.includes('invalid credentials')) {
         errMsg = "Email atau kata sandi salah. Silakan periksa kembali.";
-      } else if (errMsg.includes('Email not confirmed') || errMsg.includes('email_not_confirmed') || errMsg.includes('Email belum dikonfirmasi') || errMsg.includes('not confirmed')) {
-        errMsg = "Email Anda belum dikonfirmasi. Silakan periksa kotak masuk (atau folder spam) email Anda untuk mengaktifkan akun melalui tautan konfirmasi.";
-      } else if (err.code === 'auth/operation-not-allowed') {
-        errMsg = "Metode Email/Sandi belum diaktifkan di Console. Silakan hubungi Admin.";
+      } else if (errMsg.includes('not confirmed') || errMsg.includes('belum dikonfirmasi')) {
+        errMsg = "Email Anda belum dikonfirmasi. Silakan periksa kotak masuk email Anda.";
       }
       setAuthError(errMsg);
     } finally {
@@ -754,52 +577,30 @@ export default function App() {
 
   const handleRemoveDuplicates = async () => {
     if (!user) return;
-    if (!window.confirm("Apakah Anda yakin ingin menghapus data transaksi yang persis sama (duplikat)? Ini akan memeriksa cloud dan menghapusnya secara permanen.")) return;
-    
+    if (!window.confirm("Hapus data duplikat?")) return;
+
     try {
       const seen = new Set();
-      const duplicateIds: string[] = [];
-      
-      transactions.forEach(t => {
+      const duplicates = transactions.filter(t => {
         const key = `${t.title}-${t.amount}-${t.date}-${t.time}-${t.type}-${t.category}`;
-        if (seen.has(key)) {
-          duplicateIds.push(t.id);
-        } else {
-          seen.add(key);
-        }
+        if (seen.has(key)) return true;
+        seen.add(key);
+        return false;
       });
 
-      if (duplicateIds.length === 0) {
-        alert("Tidak ada data duplikat yang ditemukan.");
+      if (duplicates.length === 0) {
+        alert("Tidak ada data duplikat.");
         return;
       }
 
-      setImportStatus({ message: `Menghapus ${duplicateIds.length} data ganda, mohon tunggu...`, type: 'confirm' });
-
-      const batchArray = [];
-      let currentBatch = writeBatch(db);
-      let opCount = 0;
-
-      for (const id of duplicateIds) {
-        const docRef = doc(db, `users/${user.uid}/transactions`, id);
-        currentBatch.delete(docRef);
-        opCount++;
-        if (opCount === 500) {
-          batchArray.push(currentBatch.commit());
-          currentBatch = writeBatch(db);
-          opCount = 0;
-        }
-      }
-      if (opCount > 0) {
-        batchArray.push(currentBatch.commit());
+      for (const t of duplicates) {
+        await db.deleteTransaction(user.uid, t.id);
       }
 
-      await Promise.all(batchArray);
-      setImportStatus({ message: `Berhasil menghapus ${duplicateIds.length} transaksi ganda dari cloud.`, type: 'success' });
-      setRevealedId(null);
+      alert(`Berhasil menghapus ${duplicates.length} transaksi duplikat.`);
     } catch (e) {
-      console.log(e);
-      alert("Gagal menghapus data ganda.");
+      console.error(e);
+      alert("Gagal menghapus data duplikat.");
     }
   };
 
@@ -809,35 +610,19 @@ export default function App() {
       alert("Tidak ada transaksi di bulan ini.");
       return;
     }
-    if (!window.confirm("Apakah Anda yakin ingin menghapus semua data transaksi pada bulan ini? Tindakan ini tidak dapat dibatalkan.")) return;
-    
+    if (!window.confirm("Hapus semua transaksi bulan ini?")) return;
+
     try {
       if (user) {
-        setImportStatus({ message: "Menghapus data transaksi bulan ini...", type: 'confirm' });
-        const batchArray = [];
-        let currentBatch = writeBatch(db);
-        let opCount = 0;
-        
         for (const tx of monthTx) {
-          const docRef = doc(db, `users/${user.uid}/transactions`, tx.id);
-          currentBatch.delete(docRef);
-          opCount++;
-          if (opCount === 500) {
-            batchArray.push(currentBatch.commit());
-            currentBatch = writeBatch(db);
-            opCount = 0;
-          }
+          await db.deleteTransaction(user.uid, tx.id);
         }
-        if (opCount > 0) {
-          batchArray.push(currentBatch.commit());
-        }
-        await Promise.all(batchArray);
-        setImportStatus({ message: "Berhasil menghapus semua data transaksi bulan ini dari cloud.", type: 'success' });
+        alert("Berhasil menghapus semua transaksi bulan ini.");
       } else {
-        const remainingTx = transactions.filter(t => !isSameMonth(parseISO(t.date), selectedMonth));
-        setTransactions(remainingTx);
-        localStorage.setItem('blutracker_transactions', JSON.stringify(remainingTx));
-        alert("Berhasil menghapus semua data transaksi bulan ini secara lokal.");
+        const remaining = transactions.filter(t => !isSameMonth(parseISO(t.date), selectedMonth));
+        setTransactions(remaining);
+        localStorage.setItem('blutracker_transactions', JSON.stringify(remaining));
+        alert("Berhasil menghapus transaksi bulan ini (lokal).");
       }
     } catch (e: any) {
       console.log(e);
@@ -1015,32 +800,14 @@ export default function App() {
             }
             
             try {
-                const batch = writeBatch(db);
-
-                validTransactions.forEach(t => {
-                    const newTransactionRef = doc(collection(db, `users/${user.uid}/transactions`));
-                    const { id, ...transactionData } = t;
-                    const dataToSave: any = {
-                        ...transactionData,
-                        ownerId: user.uid,
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                        isDebt: t.type === 'debt' ? true : false,
-                    };
-                    if (t.type === 'debt') {
-                        dataToSave.isSettled = t.isSettled || false;
-                        dataToSave.debtType = t.debtType || 'borrow';
-                    }
-                    batch.set(newTransactionRef, dataToSave);
-                });
-                await batch.commit();
-
+                for (const t of validTransactions) {
+                  await db.addTransaction(user.uid, t as any);
+                }
                 setRevealedId(null);
                 setImportStatus({ message: `Berhasil mengimpor ${validTransactions.length} transaksi ke akun Anda secara real-time.`, type: 'success' });
             } catch (error: any) {
                 const errorDetail = error?.message || String(error);
                 setImportStatus({ message: `Gagal mengimpor data ke Cloud: ${errorDetail}`, type: 'error' });
-                handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/transactions`);
             }
           };
 
@@ -1148,7 +915,12 @@ ${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type ===
 
 Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan saran untuk bulan berikutnya. Berikan dalam bahasa Indonesia yang ringkas dan profesional, format plain text atau markdown sederhana.`;
 
-      const token = user?.getIdToken ? await user.getIdToken() : '';
+      let token = '';
+      if (user && isSupabaseConfigured) {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token || '';
+      }
+
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
@@ -1228,25 +1000,28 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     if (!newTitle || !rawAmount) return;
 
     const now = new Date();
-    const currentTime = format(now, 'HH:mm');
-    const finalTime = newTime || currentTime;
+    const finalTime = newTime || format(now, 'HH:mm');
+
+    const txData = {
+      title: newTitle,
+      amount: parseFloat(rawAmount),
+      type: newType,
+      category: newCategory,
+      date: newDate || format(now, 'yyyy-MM-dd'),
+      time: finalTime,
+      classification: newClassification,
+      isDebt: newType === 'debt',
+      debtType: newType === 'debt' ? newDebtType : undefined,
+      isSettled: newType === 'debt' ? newIsSettled : undefined,
+    };
 
     if (!user) {
-      let savedTx: Transaction = {
+      // Local mode
+      const savedTx: Transaction = {
+        ...txData,
         id: editingTransaction ? editingTransaction.id : crypto.randomUUID(),
-        title: newTitle,
-        amount: parseFloat(rawAmount),
-        type: newType,
-        category: newCategory,
-        date: newDate || (editingTransaction ? editingTransaction.date : format(now, 'yyyy-MM-dd')),
-        time: finalTime,
-        classification: newClassification,
-        isDebt: newType === 'debt',
-      };
-      if (newType === 'debt') {
-        savedTx.debtType = newDebtType;
-        savedTx.isSettled = editingTransaction ? (editingTransaction.isSettled || false) : false;
-      }
+        ownerId: 'local',
+      } as Transaction;
 
       if (editingTransaction) {
         setTransactions(prev => prev.map(t => t.id === editingTransaction.id ? savedTx : t));
@@ -1254,96 +1029,57 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
         setTransactions(prev => [...prev, savedTx]);
       }
 
-      setNewTitle('');
-      setNewAmount('');
-      setNewDate('');
-      setNewTime('');
-      setEditingTransaction(null);
-      setIsModalOpen(false);
-      setNewType('expense');
-      setNewCategory('General');
-      setNewClassification('personal');
-      setNewDebtType('borrow');
-      setNewIsSettled(false);
-      return;
+      // Save to localStorage
+      localStorage.setItem('blutracker_transactions', JSON.stringify(
+        editingTransaction 
+          ? transactions.map(t => t.id === editingTransaction.id ? savedTx : t)
+          : [...transactions, savedTx]
+      ));
+    } else {
+      // Supabase mode
+      try {
+        if (editingTransaction) {
+          await db.updateTransaction(user.uid, editingTransaction.id, txData);
+        } else {
+          await db.addTransaction(user.uid, txData as any);
+        }
+      } catch (error) {
+        console.error('Error saving transaction:', error);
+        alert('Gagal menyimpan transaksi. Silakan coba lagi.');
+      }
     }
 
-    try {
-      if (editingTransaction) {
-        const docId = editingTransaction.id.length < 10 && !editingTransaction.id.includes('-') ? crypto.randomUUID() : editingTransaction.id;
-        const docRef = doc(db, `users/${user.uid}/transactions`, docId);
-        const updateData: any = {
-          title: newTitle,
-          amount: parseFloat(rawAmount),
-          type: newType,
-          category: newCategory,
-          date: newDate || editingTransaction.date,
-          time: finalTime,
-          classification: newClassification,
-          ownerId: user.uid,
-          updatedAt: serverTimestamp(),
-          isDebt: newType === 'debt' ? true : false,
-        };
-        if (newType === 'debt') {
-          updateData.debtType = newDebtType;
-          updateData.isSettled = newIsSettled;
-        }
-        await setDoc(docRef, updateData, { merge: true });
-      } else {
-        const newTransactionRef = doc(collection(db, `users/${user.uid}/transactions`));
-        const newData: any = {
-          title: newTitle,
-          amount: parseFloat(rawAmount),
-          type: newType,
-          category: newCategory,
-          date: newDate || format(now, 'yyyy-MM-dd'),
-          time: finalTime,
-          classification: newClassification,
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          isDebt: newType === 'debt' ? true : false,
-        };
-        if (newType === 'debt') {
-          newData.debtType = newDebtType;
-          newData.isSettled = false;
-        }
-        await setDoc(newTransactionRef, newData);
-      }
-      
-      // Reset form
-      setNewTitle('');
-      setNewAmount('');
-      setNewDate('');
-      setNewTime('');
-      setEditingTransaction(null);
-      setIsModalOpen(false);
-      setNewType('expense');
-      setNewCategory('General');
-      setNewClassification('personal');
-      setNewDebtType('borrow');
-      setNewIsSettled(false);
-    } catch (error) {
-      handleFirestoreError(error, editingTransaction ? OperationType.UPDATE : OperationType.CREATE, `users/${user.uid}/transactions`);
-    }
+    // Reset form
+    setNewTitle('');
+    setNewAmount('');
+    setNewDate('');
+    setNewTime('');
+    setEditingTransaction(null);
+    setIsModalOpen(false);
+    setNewType('expense');
+    setNewCategory('General');
+    setNewClassification('personal');
+    setNewDebtType('borrow');
+    setNewIsSettled(false);
   };
 
   const handleToggleSettled = async (t: Transaction) => {
+    const newStatus = !t.isSettled;
+
     if (!user) {
-      setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, isSettled: !item.isSettled } : item));
+      setTransactions(prev => prev.map(item => item.id === t.id ? { ...item, isSettled: newStatus } : item));
+      localStorage.setItem('blutracker_transactions', JSON.stringify(
+        transactions.map(item => item.id === t.id ? { ...item, isSettled: newStatus } : item)
+      ));
       setRevealedId(null);
       return;
     }
+
     try {
-      const docRef = doc(db, `users/${user.uid}/transactions`, t.id);
-      await setDoc(docRef, {
-        isSettled: !t.isSettled,
-        ownerId: user.uid,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      await db.updateTransaction(user.uid, t.id, { isSettled: newStatus });
       setRevealedId(null);
     } catch (error) {
-       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/transactions`);
+      console.error('Error updating transaction:', error);
     }
   };
 
@@ -1362,19 +1098,22 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
   };
 
   const handleDeleteTransaction = async () => {
-    if (transactionToDelete) {
-      if (!user) {
-        setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
-        setTransactionToDelete(null);
-        return;
-      }
-      try {
-        const docRef = doc(db, `users/${user.uid}/transactions`, transactionToDelete.id);
-        await deleteDoc(docRef);
-        setTransactionToDelete(null);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/transactions`);
-      }
+    if (!transactionToDelete) return;
+
+    if (!user) {
+      const filtered = transactions.filter(t => t.id !== transactionToDelete.id);
+      setTransactions(filtered);
+      localStorage.setItem('blutracker_transactions', JSON.stringify(filtered));
+      setTransactionToDelete(null);
+      return;
+    }
+
+    try {
+      await db.deleteTransaction(user.uid, transactionToDelete.id);
+      setTransactionToDelete(null);
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('Gagal menghapus transaksi.');
     }
   };
 
@@ -1447,7 +1186,11 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
     setIsScanning(true);
     try {
-      const token = user?.getIdToken ? await user.getIdToken() : '';
+      let token = '';
+      if (user && isSupabaseConfigured) {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token || '';
+      }
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { 
@@ -2194,7 +1937,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                     <button 
                       onClick={analyzeBusinessWithAI}
                       disabled={isAiAnalyzing}
-                      className="text-xs font-bold text-gray-900 flex items-center gap-1 bg-[#CFFF0F] hover:bg-[#CFFF0F]/80 px-2 py-1 rounded-full transition-colors"
+                      className="text-xs font-bold text-black flex items-center gap-1.5 bg-[#CFFF0F] hover:bg-[#CFFF0F]/90 px-3 py-1.5 rounded-full transition-all duration-300 shadow-md shadow-[#CFFF0F]/20 active:scale-95"
                     >
                       {isAiAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                       Analisis AI
