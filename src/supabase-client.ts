@@ -14,19 +14,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // FIX: Gunakan localStorage (bukan cookies) untuk auth token
+    storage: localStorage,
+    storageKey: 'blutracker-auth-token',
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'blutracker-web',
+    },
+    // FIX: Jangan kirim cookies cross-origin
+    fetch: (url, options) => {
+      return fetch(url, {
+        ...options,
+        credentials: 'omit',
+      });
+    },
   },
   db: {
     schema: 'public'
   }
 });
-
-// Helper untuk cek session
-export const getCurrentUser = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user || null;
-};
-
-export const getCurrentSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
-};
