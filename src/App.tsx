@@ -1427,7 +1427,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                       placeholder="Cari transaksi..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-4 pr-10 py-1.5 bg-gray-50 dark:bg-[#14181E] rounded-xl text-gray-850 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#CFFF0F] transition-all text-sm"
+                      className="w-full pl-4 pr-10 py-1.5 bg-gray-50 dark:bg-[#14181E] rounded-xl text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#CFFF0F] transition-all text-sm"
                     />
                     <button 
                       onClick={() => {
@@ -1729,7 +1729,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-3 bg-white dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-gray-750 dark:text-gray-250 transition-colors cursor-pointer"
+                      className="w-full py-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-gray-750 dark:text-gray-250 transition-colors cursor-pointer"
                     >
                       <Upload size={16} className="text-blu-primary" />
                       <span>Pilih File Excel / CSV (.csv, .xlsx)</span>
@@ -1750,14 +1750,14 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={handleExportCSV}
-                        className="py-2.5 px-3 bg-white dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
+                        className="py-2.5 px-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
                       >
                         <Download size={14} className="text-green-500" />
                         <span>Format CSV</span>
                       </button>
                       <button
                         onClick={handleExportExcel}
-                        className="py-2.5 px-3 bg-white dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
+                        className="py-2.5 px-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors cursor-pointer"
                       >
                         <Download size={14} className="text-emerald-600" />
                         <span>Format Excel XLSX</span>
@@ -1779,7 +1779,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                       {user ? (
                         <button
                           onClick={handleRemoveDuplicates}
-                          className="w-full py-2.5 px-4 bg-white dark:bg-gray-850 hover:bg-red-50/50 dark:hover:bg-red-950/25 border border-red-100 dark:border-red-950/80 rounded-xl flex items-center justify-between text-xs font-bold text-rose-500 dark:text-rose-400 transition-colors cursor-pointer"
+                          className="w-full py-2.5 px-4 bg-white dark:bg-gray-800 hover:bg-red-50/50 dark:hover:bg-red-950/25 border border-red-100 dark:border-red-950/80 rounded-xl flex items-center justify-between text-xs font-bold text-rose-500 dark:text-rose-400 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
                             <Trash2 size={14} />
@@ -1794,7 +1794,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
                       )}
                       <button
                         onClick={handleClearCurrentMonth}
-                        className="w-full py-2.5 px-4 bg-white dark:bg-gray-850 hover:bg-red-50/50 dark:hover:bg-red-950/25 border border-red-100 dark:border-red-950/80 rounded-xl flex items-center justify-between text-xs font-bold text-rose-500 dark:text-rose-400 transition-colors cursor-pointer"
+                        className="w-full py-2.5 px-4 bg-white dark:bg-gray-800 hover:bg-red-50/50 dark:hover:bg-red-950/25 border border-red-100 dark:border-red-950/80 rounded-xl flex items-center justify-between text-xs font-bold text-rose-500 dark:text-rose-400 transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
                           <Trash2 size={14} />
