@@ -589,9 +589,8 @@ export default function App() {
         return;
       }
 
-      for (const t of duplicates) {
-        await db.deleteTransaction(user.uid, t.id);
-      }
+      const ids = duplicates.map(t => t.id);
+      await db.deleteTransactions(user.uid, ids);
 
       alert(`Berhasil menghapus ${duplicates.length} transaksi duplikat.`);
     } catch (e) {
@@ -915,19 +914,18 @@ export default function App() {
 
     try {
       const prompt = `Saya memiliki data transaksi bisnis berikut untuk bulan ${format(selectedMonth, 'MMMM yyyy', {locale: id})}:
-${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}) Rp ${t.amount} [Kategori: ${t.category}]`).join('\n')}
+${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}) - ${formatCurrency(t.amount)}`).join('\n')}
 
-Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan saran untuk bulan berikutnya. Berikan dalam bahasa Indonesia yang ringkas dan profesional, format plain text atau markdown sederhana.`;
+Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan tren pendapatan. Berikan dalam format yang mudah dibaca dengan emoji.`;
 
-       if (user && isSupabaseConfigured) {
-    try {
-      let token = await auth.getIdToken();
-    } catch (e) {
-      console.error('Auth error:', e);
-    }
-  }
-  
-  try { 
+      let token = '';
+      if (user && isSupabaseConfigured) {
+        try {
+          token = await auth.getIdToken();
+        } catch (e) {
+          console.error('Auth error:', e);
+        }
+      }
 
       const res = await fetch("/api/gemini", {
         method: "POST",
@@ -942,8 +940,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
       setAiAnalysisResult(data.text);
       setIsAiAnalysisModalOpen(true);
-    } 
-  catch (error: any) {
+    } catch (error: any) {
       console.error(error);
       if (error?.message?.toLowerCase().includes('api key')) {
          setAiAnalysisResult("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan.");
@@ -954,6 +951,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
       }
     } finally {
       setIsAiAnalyzing(false);
+      setIsAiLoading(false);
     }
   };
 
