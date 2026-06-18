@@ -2,7 +2,7 @@
   "name": "blu - Financial Tracker",
   "short_name": "blu",
   "description": "Smart financial tracker with AI categorization and receipt scanning.",
-  "start_url": "/",
+  "start_url": "/remix-blutracker/",
   "display": "standalone",
   "background_color": "#00AEEF",
   "theme_color": "#00AEEF",
