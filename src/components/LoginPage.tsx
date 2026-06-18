@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from '../firebase-auth-adapter';
-import { auth } from '../firebase';
-import { supabase, isSupabaseConfigured } from '../supabase';
+import { signInWithEmail, signUpWithEmail } from '../auth';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -45,34 +43,10 @@ export const LoginPage = () => {
             setIsLoading(true);
             setGeneralError('');
             try {
-                if (isSupabaseConfigured) {
-                    if (isRegisterMode) {
-                        const { error } = await supabase.auth.signUp({
-                            email: email.trim(),
-                            password: password.trim(),
-                            options: {
-                                data: {
-                                    display_name: email.split('@')[0]
-                                }
-                            }
-                        });
-                        if (error) throw error;
-                    } else {
-                        const { error } = await supabase.auth.signInWithPassword({
-                            email: email.trim(),
-                            password: password.trim()
-                        });
-                        if (error) throw error;
-                    }
+                if (isRegisterMode) {
+                    await signUpWithEmail(email.trim(), password.trim(), email.split('@')[0]);
                 } else {
-                    if (isRegisterMode) {
-                        const result = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
-                        if (result.user) {
-                            await updateProfile(result.user, { displayName: email.split('@')[0] });
-                        }
-                    } else {
-                        await signInWithEmailAndPassword(auth, email.trim(), password.trim());
-                    }
+                    await signInWithEmail(email.trim(), password.trim());
                 }
                 // Success - App.tsx onAuthStateChanged will handle the rest
             } catch (err: any) {
