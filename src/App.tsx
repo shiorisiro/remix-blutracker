@@ -60,8 +60,6 @@ import * as XLSX from 'xlsx';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
-import { Capacitor } from '@capacitor/core';
-
 import { LoginPage } from './components/LoginPage';
 import { cn } from './lib/utils';
 import { INITIAL_TRANSACTIONS } from './constants';
@@ -147,7 +145,6 @@ export default function App() {
   }, [transactions, user, authReady]);
 
   useEffect(() => {
-    // Capacitor specific initialization if needed
   }, []);
 
   useEffect(() => {
@@ -914,7 +911,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
       let token = '';
       if (user && isSupabaseConfigured) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const token = await auth.getIdToken();
         token = session?.access_token || '';
       }
 
