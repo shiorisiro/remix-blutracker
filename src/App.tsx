@@ -609,9 +609,10 @@ export default function App() {
 
     try {
       if (user) {
-        for (const tx of monthTx) {
-          await db.deleteTransaction(user.uid, tx.id);
-        }
+        if (user) {
+  const ids = monthTx.map(tx => tx.id);
+  await db.deleteTransactions(user.uid, ids); // Sekali query!
+}
         alert("Berhasil menghapus semua transaksi bulan ini.");
       } else {
         const remaining = transactions.filter(t => !isSameMonth(parseISO(t.date), selectedMonth));
