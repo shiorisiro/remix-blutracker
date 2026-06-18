@@ -1100,6 +1100,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     setNewIsSettled(t.isSettled || false);
     setIsModalOpen(true);
   };
+  
 const handleDeleteTransaction = async () => {
   if (!transactionToDelete || isDeleting) return;  // ← tambahkan || isDeleting
 
