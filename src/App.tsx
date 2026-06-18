@@ -1447,47 +1447,52 @@ const handleDeleteTransaction = async () => {
               {!isSearchOpen && (
                 <div className="flex items-center gap-1">
                   <button 
-                    onClick={toggleTheme}
-                    className={cn(
-                      "relative w-[52px] h-[28px] rounded-full p-0.5 transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
-                      theme === 'light'
-                        ? "bg-sky-200"
-                        : "bg-slate-950 border border-slate-800"
-                    )}
-                    title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
-                  >
-                    {/* Background decorations: clouds for Day, stars for Night */}
-                    <div className="absolute inset-0 transition-opacity duration-300 pointer-events-none">
-                      {theme === 'light' ? (
-                        <div className="absolute right-2 top-2 w-4 h-1.5 bg-white/95 rounded-full blur-[0.2px]">
-                          <div className="absolute -top-1 left-1.5 w-2.5 h-2.5 bg-white/100 rounded-full"></div>
-                        </div>
-                      ) : (
-                        <div className="absolute left-2 top-1.5 flex gap-1 items-center opacity-60">
-                          <div className="w-[1.5px] h-[1.5px] bg-white rounded-full"></div>
-                          <div className="w-[1px] h-[1px] bg-yellow-100 rounded-full"></div>
-                          <div className="w-[2px] h-[1.5px] bg-yellow-100 rounded-full"></div>
-                        </div>
-                      )}
-                    </div>
+  onClick={toggleTheme}
+  className={cn(
+    "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
+    theme === 'light'
+      ? "bg-sky-200"
+      : "bg-slate-950 border border-slate-800"
+  )}
+  title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+>
+  {/* Background decorations */}
+  <div className="absolute inset-0 pointer-events-none">
+    {theme === 'light' ? (
+      // Awan di kanan
+      <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
+        <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
+      </div>
+    ) : (
+      // Bintang di kanan (jauh dari knob yang ada di kiri)
+      <div className="absolute right-2 top-1.5 flex flex-col gap-[3px] items-end opacity-70">
+        <div className="w-[2px] h-[2px] bg-white rounded-full" />
+        <div className="w-[1.5px] h-[1.5px] bg-yellow-100 rounded-full" />
+        <div className="w-[2px] h-[2px] bg-white rounded-full" />
+      </div>
+    )}
+  </div>
 
-                    {/* Sliding knob */}
-                    <div className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center shadow-md relative z-10 transition-all duration-500",
-                      theme === 'light'
-                        ? "bg-amber-400 text-white ml-0"
-                        : "bg-slate-800 text-yellow-300 ml-5"
-                    )}>
-                      <motion.div 
-                        initial={false}
-                        animate={{ rotate: theme === 'light' ? 0 : 360 }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                        className="flex items-center justify-center w-full h-full"
-                      >
-                        {theme === 'light' ? <Sun size={12} className="fill-white font-bold" /> : <Moon size={12} className="fill-yellow-300 font-bold" />}
-                      </motion.div>
-                    </div>
-                  </button>
+  {/* Sliding knob — pakai absolute + translate untuk presisi */}
+  <motion.div
+    animate={{ x: theme === 'light' ? 2 : 26 }}
+    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+    className={cn(
+      "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10",
+      theme === 'light' ? "bg-amber-400" : "bg-slate-700"
+    )}
+  >
+    <motion.div
+      animate={{ rotate: theme === 'light' ? 0 : 360 }}
+      transition={{ duration: 0.5, ease: "easeInOut" }}
+    >
+      {theme === 'light'
+        ? <Sun size={13} className="fill-white text-white" />
+        : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
+      }
+    </motion.div>
+  </motion.div>
+</button>
                   <button 
                     onClick={() => setIsDebtModalOpen(true)}
                     className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
