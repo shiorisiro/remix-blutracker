@@ -1183,8 +1183,7 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     try {
       let token = '';
       if (user && isSupabaseConfigured) {
-        const { data: { session } } = await supabase.auth.getSession();
-        token = session?.access_token || '';
+        token = await auth.getIdToken();
       }
       const res = await fetch("/api/gemini", {
         method: "POST",
