@@ -280,6 +280,7 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -1099,18 +1100,22 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
     setNewIsSettled(t.isSettled || false);
     setIsModalOpen(true);
   };
+const handleDeleteTransaction = async () => {
+  if (!transactionToDelete || isDeleting) return;  // ← tambahkan || isDeleting
 
-  const handleDeleteTransaction = async () => {
-    if (!transactionToDelete) return;
+  // ... (local mode sama)
 
-    if (!user) {
-      const filtered = transactions.filter(t => t.id !== transactionToDelete.id);
-      setTransactions(filtered);
-      localStorage.setItem('blutracker_transactions', JSON.stringify(filtered));
-      setTransactionToDelete(null);
-      return;
-    }
-
+  setIsDeleting(true);  // ← TAMBAH INI
+  try {
+    await db.deleteTransaction(user.uid, transactionToDelete.id);
+    setTransactionToDelete(null);
+  } catch (error: any) {
+    console.error('Error deleting transaction:', error);
+    alert(error.message || 'Gagal menghapus transaksi.');
+  } finally {
+    setIsDeleting(false);  // ← TAMBAH INI
+  }
+};
     try {
       await db.deleteTransaction(user.uid, transactionToDelete.id);
       setTransactionToDelete(null);
@@ -2394,11 +2399,12 @@ Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Foku
 
             <div className="flex flex-col gap-3">
               <button 
-                onClick={handleDeleteTransaction}
-                className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-colors"
-              >
-                Ya, Hapus
-              </button>
+  onClick={handleDeleteTransaction}
+  disabled={isDeleting}  // ← TAMBAH INI
+  className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}  // ← TAMBAH INI
+</button>
               <button 
                 onClick={() => setTransactionToDelete(null)}
                 className="w-full py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-colors"
