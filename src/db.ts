@@ -61,7 +61,7 @@ export const db = {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .or(`user_id.eq.${userId},owner_id.eq.${userId}`)
+      .eq('user_id', userId)
       .order('date', { ascending: false });
 
     if (error) {
@@ -202,7 +202,7 @@ export const db = {
       throw new Error('Invalid userId');
     }
 
-    const { error } = await supabase.from('transactions').delete().or(`user_id.eq.${userId},owner_id.eq.${userId}`);
+    const { error } = await supabase.from('transactions').delete().eq('user_id', userId)
     if (error) throw error;
   },
 

@@ -681,6 +681,23 @@ export default function App() {
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    // Validate file type
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setImportStatus({ message: 'Invalid file type. Only CSV and Excel files are allowed.', type: 'error' });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setImportStatus({ message: 'File too large. Maximum size is 5MB.', type: 'error' });
+      return;
+    }
 
     const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
     const reader = new FileReader();
