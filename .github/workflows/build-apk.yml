@@ -40,7 +40,7 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Build APK
-       run: |
+        run: |
           cd android
           chmod +x ./gradlew
           ./gradlew assembleDebug
