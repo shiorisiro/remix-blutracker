@@ -2,19 +2,19 @@ import 'dotenv/config';
 import { config as dotenvSafeConfig } from 'dotenv-safe';
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
+import logger from '../utils/logger';
 
 // Load dotenv-safe in development to ensure required vars are present if using that flow.
 try {
   // .env.example will list required server env vars; dotenv-safe will throw if any are missing when used.
   dotenvSafeConfig({ example: '.env.example', allowEmptyValues: true });
-} catch (e) {
-  // swallow in case dotenv-safe isn't configured in environments where it's not wanted
+} catch (e: any) {
+  // Log warning so missing envs in non-strict environments are visible
+  logger.warn({ err: e }, 'dotenv-safe check failed (non-fatal)');
 }
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
-
-const allowLocalFallback = process.env.NODE_ENV !== 'production' && process.env.ALLOW_LOCAL_FALLBACK === 'true';
 
 const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
@@ -35,11 +35,7 @@ export const requireAuth = async (
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    if (allowLocalFallback) {
-      req.user = { uid: 'local-mock-user-id', email: 'fallback-user@example.com', displayName: 'Mock User' };
-      req.dbUser = { id: 'local-mock-user-id', uid: 'local-mock-user-id', email: 'fallback-user@example.com' };
-      return next();
-    }
+    // Strict: no local fallback in code. Tests should mock this middleware instead.
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -51,14 +47,14 @@ export const requireAuth = async (
   }
 
   if (!supabase) {
-    console.error('Supabase client not configured on the server.');
+    logger.error('Supabase client not configured on the server.');
     return res.status(500).json({ error: 'Server misconfiguration' });
   }
 
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data?.user) {
-      console.error('Error verifying Supabase token:', error?.message ?? 'no user returned');
+      logger.warn({ err: error }, 'Error verifying Supabase token');
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -77,7 +73,7 @@ export const requireAuth = async (
 
     next();
   } catch (e: any) {
-    console.error('Error verifying Supabase token:', e);
+    logger.error({ err: e }, 'Error verifying Supabase token');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 };

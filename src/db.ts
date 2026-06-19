@@ -3,22 +3,25 @@ import { Transaction } from './types';
 
 // ==========================================
 // LOCAL STORAGE FALLBACK (Offline Mode)
+// Use sessionStorage instead of localStorage to reduce persistent exposure of user data.
 // ==========================================
 const localDb = {
   getTransactions: (userId: string): Transaction[] => {
     try {
-      const all = localStorage.getItem(`blutracker_tx_${userId}`) || '[]';
+      const key = `blutracker_tx_${userId}`;
+      const all = sessionStorage.getItem(key) || '[]';
       return JSON.parse(all);
     } catch {
       return [];
     }
   },
   saveTransactions: (userId: string, txs: Transaction[]) => {
-    localStorage.setItem(`blutracker_tx_${userId}`, JSON.stringify(txs));
+    const key = `blutracker_tx_${userId}`;
+    sessionStorage.setItem(key, JSON.stringify(txs));
   },
   getUser: () => {
     try {
-      const u = localStorage.getItem('blutracker_auth_user');
+      const u = sessionStorage.getItem('blutracker_auth_user');
       return u ? JSON.parse(u) : null;
     } catch {
       return null;
@@ -26,12 +29,18 @@ const localDb = {
   },
   setUser: (user: any) => {
     if (user) {
-      localStorage.setItem('blutracker_auth_user', JSON.stringify(user));
+      sessionStorage.setItem('blutracker_auth_user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('blutracker_auth_user');
+      sessionStorage.removeItem('blutracker_auth_user');
     }
   }
 };
+
+// Helper to validate userId (must be UUID v4 format)
+function validateUserId(userId: string) {
+  const uuidV4 = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i;
+  return uuidV4.test(userId);
+}
 
 // ==========================================
 // SUPABASE DATABASE OPERATIONS
@@ -42,6 +51,11 @@ export const db = {
   async getTransactions(userId: string): Promise<Transaction[]> {
     if (!isSupabaseConfigured) {
       return localDb.getTransactions(userId);
+    }
+
+    if (!validateUserId(userId)) {
+      console.error('Invalid userId format when fetching transactions');
+      return [];
     }
 
     const { data, error } = await supabase
@@ -184,6 +198,10 @@ export const db = {
       return;
     }
 
+    if (!validateUserId(userId)) {
+      throw new Error('Invalid userId');
+    }
+
     const { error } = await supabase.from('transactions').delete().or(`user_id.eq.${userId},owner_id.eq.${userId}`);
     if (error) throw error;
   },
@@ -191,7 +209,7 @@ export const db = {
   // Realtime subscription
   subscribeToTransactions(userId: string, callback: (transactions: Transaction[]) => void) {
     if (!isSupabaseConfigured) {
-      // Poll localStorage every 2 seconds
+      // Poll sessionStorage every 2 seconds
       const interval = setInterval(() => {
         callback(localDb.getTransactions(userId));
       }, 2000);
