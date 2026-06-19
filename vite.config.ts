@@ -39,9 +39,8 @@ export default defineConfig(({mode}) => {
         }
       })
     ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
+    // NOTE: Do NOT expose server-side secrets here (e.g. GEMINI_API_KEY).
+    // The client should call server endpoints (/api/gemini) — remove any define inlining of secrets.
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
