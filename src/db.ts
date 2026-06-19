@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from './supabase-client';
 import { Transaction } from './types';
 
 // ==========================================
-// LOCAL STORAGE FALLBACK (Offline Mode)
+// OFFLINE FALLBACK (Session storage)
 // Use sessionStorage instead of localStorage to reduce persistent exposure of user data.
 // ==========================================
 const localDb = {
@@ -58,10 +58,11 @@ export const db = {
       return [];
     }
 
+    // Use user-scoped query and rely on Supabase Row Level Security (RLS) to enforce owner access
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .or(`user_id.eq.${userId},owner_id.eq.${userId}`)
+      .eq('user_id', userId)
       .order('date', { ascending: false });
 
     if (error) {
@@ -202,7 +203,8 @@ export const db = {
       throw new Error('Invalid userId');
     }
 
-    const { error } = await supabase.from('transactions').delete().or(`user_id.eq.${userId},owner_id.eq.${userId}`);
+    // Use eq and rely on RLS rather than string interpolation
+    const { error } = await supabase.from('transactions').delete().eq('user_id', userId);
     if (error) throw error;
   },
 
