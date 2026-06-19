@@ -36,9 +36,11 @@ export const auth = {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }
-    localStorage.removeItem('blutracker-auth-token');
-    localStorage.removeItem('blutracker_auth_user');
-    localStorage.removeItem('blutracker_tx_local');
+    // Use sessionStorage for transient client-side data
+    try { sessionStorage.removeItem('blutracker-auth-token'); } catch {};
+    try { sessionStorage.removeItem('blutracker_auth_user'); } catch {};
+    try { sessionStorage.removeItem('blutracker_tx_local'); } catch {};
+    localDb.setUser(null);
     notifyListeners(null);
   },
 
@@ -59,7 +61,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
     if (user) notifyListeners(user);
     return user!;
   } else {
-    // Local auth fallback
+    // Local auth fallback (offline mode) uses sessionStorage via localDb
     const localUser = localDb.getUser();
     if (localUser && localUser.email === email) {
       notifyListeners(localUser);
@@ -108,52 +110,5 @@ export async function updateUserProfile(profile: { displayName?: string; photoUR
 
   if (currentUser) {
     currentUser.displayName = profile.displayName ?? currentUser.displayName;
-    currentUser.photoURL = profile.photoURL ?? currentUser.photoURL;
-    notifyListeners(currentUser);
   }
-}
-
-export function onAuthStateChange(callback: (user: AppUser | null) => void): () => void {
-  authListeners.add(callback);
-
-  // Initial check
-  if (isSupabaseConfigured) {
-    supabase.auth.getSession().then(({ data }) => {
-      const user = mapSupabaseUser(data.session?.user);
-      callback(user);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const user = mapSupabaseUser(session?.user);
-      callback(user);
-    });
-
-    return () => {
-      authListeners.delete(callback);
-      subscription.unsubscribe();
-    };
-  } else {
-    const localUser = localDb.getUser();
-    callback(localUser);
-
-    return () => {
-      authListeners.delete(callback);
-    };
-  }
-}
-
-// Google Sign-In (via Supabase OAuth)
-export async function signInWithGoogle(): Promise<void> {
-  if (!isSupabaseConfigured) {
-    throw new Error('Supabase tidak dikonfigurasi. Login Google tidak tersedia.');
-  }
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-    }
-  });
-
-  if (error) throw error;
 }

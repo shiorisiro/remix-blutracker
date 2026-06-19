@@ -16,6 +16,11 @@ export const LoginPage = () => {
         return re.test(email);
     };
 
+    const validatePasswordStrength = (password: string) => {
+        // Minimum 8 characters, at least one uppercase, one lowercase, one digit, one special character
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password);
+    };
+
     const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEmail(e.target.value);
         if (emailError) {
@@ -26,7 +31,7 @@ export const LoginPage = () => {
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setPassword(e.target.value);
         if (passwordError) {
-            setPasswordError(e.target.value.length < 6);
+            setPasswordError(!validatePasswordStrength(e.target.value));
         }
     };
 
@@ -34,7 +39,7 @@ export const LoginPage = () => {
         e.preventDefault();
         
         const isEmailValid = validateEmail(email);
-        const isPasswordValid = password.length >= 6;
+        const isPasswordValid = validatePasswordStrength(password);
 
         setEmailError(!isEmailValid);
         setPasswordError(!isPasswordValid);
@@ -299,7 +304,7 @@ export const LoginPage = () => {
                     transform: translateY(-1px);
                     box-shadow: 0 6px 24px rgba(207, 255, 15, 0.25);
                 }
-                
+                 
                 .btn-submit:active {
                     transform: translateY(0);
                 }
@@ -310,7 +315,7 @@ export const LoginPage = () => {
                     cursor: not-allowed;
                     box-shadow: none;
                 }
- 
+                 
                 .spinner {
                     width: 16px;
                     height: 16px;
@@ -399,7 +404,7 @@ export const LoginPage = () => {
                                     )}
                                 </div>
                                 <span className={`error-message ${passwordError ? 'visible' : ''}`}>
-                                    Password must be at least 6 characters
+                                    Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol
                                 </span>
                             </div>
 

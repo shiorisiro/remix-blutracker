@@ -20,13 +20,39 @@ async function startServer() {
   // Security headers
   app.use(helmet());
 
+  // HSTS - enforce HTTPS in production
+  app.use(helmet.hsts({
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  }));
+
+  // Content Security Policy
+  const rawOrigins = process.env.CORS_ORIGINS;
+  app.use(helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", process.env.VITE_SUPABASE_URL || ''],
+      frameAncestors: ["'none'"],
+    },
+  }));
+
   // CORS - restrict origins in production via CORS_ORIGINS env var (comma-separated)
-  const whitelist = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!rawOrigins && !isDev) {
+    logger.error('CORS_ORIGINS is required in production. Startup aborted.');
+    process.exit(1);
+  }
+  const whitelist = (rawOrigins || '').split(',').map(s => s.trim()).filter(Boolean);
   app.use(cors({
     origin: (origin, callback) => {
       // allow non-browser requests with no origin (e.g., curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (whitelist.length === 0 || whitelist.includes(origin)) return callback(null, true);
+      if (whitelist.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     }
   }));
