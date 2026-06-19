@@ -13,7 +13,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     // Check localStorage first
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    const savedTheme = sessionStorage.getItem('theme') as Theme | null;
     if (savedTheme === 'light' || savedTheme === 'dark') {
       return savedTheme;
     }
@@ -32,7 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       } else {
         root.classList.remove('dark');
       }
-      localStorage.setItem('theme', theme);
+      sessionStorage.setItem('theme', theme);
     }
   }, [theme]);
 
