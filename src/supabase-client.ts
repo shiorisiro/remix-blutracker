@@ -9,26 +9,24 @@ export const isSupabaseConfigured =
   supabaseAnonKey !== '' &&
   supabaseAnonKey !== 'placeholder-anon-key';
 
+// Use Supabase client with default storage behavior. Do NOT store tokens in localStorage in production.
+// To migrate to secure sessions, configure Supabase to use httpOnly cookies and set `auth.persistSession` accordingly.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // FIX: Gunakan localStorage (bukan cookies) untuk auth token
-    storage: localStorage,
-    storageKey: 'blutracker-auth-token',
+    // IMPORTANT: remove custom localStorage usage to avoid XSS-extractable tokens
+    // storage: localStorage, // <-- removed
+    // storageKey: 'blutracker-auth-token',
   },
   global: {
     headers: {
       'X-Client-Info': 'blutracker-web',
     },
-    // FIX: Jangan kirim cookies cross-origin
-    fetch: (url, options) => {
-      return fetch(url, {
-        ...options,
-        credentials: 'omit',
-      });
-    },
+    // If you use cookie-based sessions, ensure fetch uses credentials: 'include' for same-origin requests.
+    // Otherwise leave default fetch behavior.
+    // fetch: (url, options) => fetch(url, { ...options, credentials: 'include' }),
   },
   db: {
     schema: 'public'

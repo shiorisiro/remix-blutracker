@@ -1,7 +1,11 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-// We fall back to the project's standard Web Client ID based on sender ID (433471653749)
-const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || '433471653749-p589v1t6d525jpsg96f4tkaoc081bqu7.apps.googleusercontent.com';
+// Require Google Client ID to be provided at build time. Do NOT hardcode fallback values.
+const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID;
+
+if (!googleClientId) {
+  throw new Error('VITE_GOOGLE_CLIENT_ID is required. Set it in your build environment (CI or .env) and do not commit it to source.');
+}
 
 const config: CapacitorConfig = {
   appId: 'com.blutracker.app',
