@@ -37,8 +37,7 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync
         env:
-          export VITE_GOOGLE_CLIENT_ID="${{ secrets.VITE_GOOGLE_CLIENT_ID }}"
-          npx cap sync
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Build APK
         run: |
