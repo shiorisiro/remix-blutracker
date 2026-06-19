@@ -39,12 +39,16 @@ jobs:
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
+      - name: Regenerate Android project
+        run: |
+          rm -rf android
+          npx cap add android
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+
       - name: Build APK
         run: |
           cd android
-          rm -f gradle/wrapper/gradle-wrapper.jar
-          curl -L -o gradle/wrapper/gradle-wrapper.jar \
-            https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
