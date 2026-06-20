@@ -1336,7 +1336,7 @@ const handleDeleteTransaction = async () => {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
+      <div className="min-h-[calc(100dvh-env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center justify-center bg-[#fafafa]">
         <Loader2 className="animate-spin text-[#171717]" size={24} />
       </div>
     );
@@ -1347,7 +1347,7 @@ const handleDeleteTransaction = async () => {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-[#F8FAFC] dark:bg-[#08090B] text-gray-900 dark:text-white min-h-screen pb-24 relative shadow-2xl overflow-hidden transition-colors duration-200 border-x border-gray-100 dark:border-[#14181E]">
+    <div className="max-w-md mx-auto bg-[#F8FAFC] dark:bg-[#08090B] text-gray-900 dark:text-white min-h-[calc(100dvh-env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] pb-24 relative shadow-2xl overflow-hidden transition-colors duration-200 border-x border-gray-100 dark:border-[#14181E]">
       {/* Header - Only on Home */}
       {activeTab === 'home' && (
         <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
