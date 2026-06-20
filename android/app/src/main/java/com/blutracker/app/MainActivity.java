@@ -2,7 +2,6 @@ package com.blutracker.app;
 
 import android.os.Bundle;
 import android.view.View;
-import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -13,14 +12,16 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Edge-to-edge dengan status bar terlihat (Android 15+)
         ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
+            int top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            int bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            int left = insets.getInsets(WindowInsetsCompat.Type.systemBars()).left;
+            int right = insets.getInsets(WindowInsetsCompat.Type.systemBars()).right;
+            
+            v.setPadding(left, top, right, bottom);
+            return WindowInsetsCompat.CONSUMED;
         });
         
-        // Pastikan status bar tidak fullscreen (bisa swipe untuk notification)
         WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
         controller.show(WindowInsetsCompat.Type.statusBars());
     }
