@@ -70,7 +70,13 @@ import { StatsDetailModal } from './components/StatsDetailModal';
 import { TransactionModal } from './components/TransactionModal';
 import { AuthModal } from './components/AuthModal';
 
-
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return 'Selamat Pagi';
+  if (hour >= 11 && hour < 15) return 'Selamat Siang';
+  if (hour >= 15 && hour < 18) return 'Selamat Sore';
+  return 'Selamat Malam';
+};
 
 
 
@@ -1365,7 +1371,7 @@ const handleDeleteTransaction = async () => {
                 )}
               </div>
               <div className="flex flex-col select-none">
-                <p className="text-xs text-gray-400 font-medium tracking-wide">{user ? 'Selamat Pagi,' : 'Belum Masuk'}</p>
+                <p className="text-xs text-gray-400 font-medium tracking-wide">{getGreeting()},</p>
                 {user ? (
                   isEditingName ? (
                     <div className="flex items-center gap-1.5 mt-0.5">
