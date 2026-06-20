@@ -34,9 +34,15 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # SYNC SAJA, JANGAN REGENERATE! Biar modifikasi android/ tetap ada
-      - name: Sync Capacitor Android
-        run: npx cap sync android
+      - name: Sync Capacitor
+        run: npx cap sync
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+
+      - name: Regenerate Android project
+        run: |
+          rm -rf android
+          npx cap add android
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 

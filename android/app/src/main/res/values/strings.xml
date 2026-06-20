@@ -4,6 +4,4 @@
     <string name="title_activity_main">Blu Tracker</string>
     <string name="package_name">com.blutracker.app</string>
     <string name="custom_url_scheme">com.blutracker.app</string>
-    <!-- NOTE: Do not store sensitive client IDs in the repo. Inject the server_client_id at build time via Gradle or CI. -->
-    <string name="server_client_id">REPLACE_AT_BUILD_TIME</string>
 </resources>
