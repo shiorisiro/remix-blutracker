@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-      NODE_ENV: production
     
     steps:
     - uses: actions/checkout@v4
