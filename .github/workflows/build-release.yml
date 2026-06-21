@@ -46,15 +46,28 @@ jobs:
       with:
         name: app-release-unsigned
         path: android/app/build/outputs/bundle/release/app-release.aab
+
     - name: Decode keystore
       run: |
-       echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/blutracker.keystore
-    
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/blutracker.keystore
+
+    - name: Verify keystore was decoded correctly
+      run: |
+        KEYSTORE_PATH="android/app/blutracker.keystore"
+        if [ ! -s "$KEYSTORE_PATH" ]; then
+          echo "::error::Keystore file is missing or empty at $KEYSTORE_PATH. Check that the KEYSTORE_BASE64 secret is set and is valid base64."
+          exit 1
+        fi
+        # keytool fails loudly (non-zero exit) if the file isn't a valid keystore
+        # or if KEYSTORE_PASSWORD doesn't match, catching bad secrets before the slow build runs.
+        keytool -list -keystore "$KEYSTORE_PATH" -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null
+        echo "Keystore verified OK ($(stat -c%s "$KEYSTORE_PATH") bytes)."
+
     - name: Build AAB Release
       run: |
         cd android
         ./gradlew bundleRelease \
-          -Pandroid.injected.signing.store.file=app/blutracker.keystore \
+          -Pandroid.injected.signing.store.file=blutracker.keystore \
           -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
           -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
           -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
