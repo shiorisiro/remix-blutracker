@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.blutracker.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    
     defaultConfig {
         applicationId "com.blutracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -11,13 +12,23 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    
+    // TAMBAHKAN INI
+    signingConfigs {
+        release {
+            storeFile file("blutracker.keystore")
+            storePassword "PASSWORD_YANG_KAMU_MASUKKAN"
+            keyAlias "blutracker"
+            keyPassword "PASSWORD_YANG_KAMU_MASUKKAN"
+        }
+    }
+    
     buildTypes {
         release {
+            signingConfig signingConfigs.release  // TAMBAHKAN INI
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
