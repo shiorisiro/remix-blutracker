@@ -1359,7 +1359,8 @@ const handleDeleteTransaction = async () => {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen pt-[env(safe-area-inset-top)] flex items-center justify-center bg-[#fafafa]">
+      <div className="min-h-[calc(100dvh-env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]
+">
         <Loader2 className="animate-spin text-[#171717]" size={24} />
       </div>
     );
