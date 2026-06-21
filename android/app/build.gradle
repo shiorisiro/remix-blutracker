@@ -19,7 +19,7 @@ android {
     // TAMBAHKAN INI
     signingConfigs {
         release {
-            storeFile file("blutracker.keystore")
+            storeFile file("${rootDir}/app/blutracker.keystore")
             storePassword "PASSWORD_YANG_KAMU_MASUKKAN"
             keyAlias "blutracker"
             keyPassword "PASSWORD_YANG_KAMU_MASUKKAN"
