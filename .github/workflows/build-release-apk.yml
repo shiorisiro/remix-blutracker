@@ -1,0 +1,82 @@
+name: Build Release APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build web assets
+      run: npm run build
+
+    - name: Sync Capacitor
+      run: npx cap sync android
+
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/blutracker.keystore
+
+    - name: Verify keystore was decoded correctly
+      run: |
+        KEYSTORE_PATH="android/app/blutracker.keystore"
+        if [ ! -s "$KEYSTORE_PATH" ]; then
+          echo "::error::Keystore file is missing or empty at $KEYSTORE_PATH. Check that the KEYSTORE_BASE64 secret is set and is valid base64."
+          exit 1
+        fi
+        # keytool fails loudly (non-zero exit) if the file isn't a valid keystore
+        # or if KEYSTORE_PASSWORD doesn't match, catching bad secrets before the slow build runs.
+        keytool -list -keystore "$KEYSTORE_PATH" -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null
+        echo "Keystore verified OK ($(stat -c%s "$KEYSTORE_PATH") bytes)."
+
+    - name: Build signed Release APK
+      run: |
+        cd android
+        ./gradlew assembleRelease --no-daemon \
+          -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/android/app/blutracker.keystore" \
+          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+    - name: Verify APK exists and is actually signed
+      run: |
+        APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+        if [ ! -f "$APK_PATH" ]; then
+          echo "::error::Expected APK not found at $APK_PATH"
+          exit 1
+        fi
+        if unzip -l "$APK_PATH" | grep -Eq "META-INF/.*\.(RSA|DSA|EC)$"; then
+          echo "APK signature block found - APK is signed. Size: $(stat -c%s "$APK_PATH") bytes."
+        else
+          echo "::error::No signature block found inside the APK - it was built unsigned. Check the signing properties/secrets above."
+          exit 1
+        fi
+
+    - name: Upload signed APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-apk
+        path: android/app/build/outputs/apk/release/app-release.apk
