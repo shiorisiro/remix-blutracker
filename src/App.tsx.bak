@@ -80,31 +80,8 @@ const getGreeting = () => {
 
 
 
-import { StatusBar, Style } from '@capacitor/status-bar';
-
 export default function App() {
   const { theme, toggleTheme } = useTheme();
-
-  // Status Bar handling
-  useEffect(() => {
-    const updateStatusBar = async () => {
-      try {
-        // Disable overlay to prevent webview from "penetrating" the status bar
-        await StatusBar.setOverlaysWebView({ overlay: false });
-
-        if (theme === 'dark') {
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#08090B' });
-        } else {
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#F8FAFC' });
-        }
-      } catch (e) {
-        console.log('Status bar not available');
-      }
-    };
-    updateStatusBar();
-  }, [theme]);
 
   // Register Service Worker for PWA
   useEffect(() => {
@@ -1359,7 +1336,7 @@ const handleDeleteTransaction = async () => {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen pt-[env(safe-area-inset-top)] flex items-center justify-center bg-[#fafafa]">
+      <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
         <Loader2 className="animate-spin text-[#171717]" size={24} />
       </div>
     );
@@ -1370,20 +1347,10 @@ const handleDeleteTransaction = async () => {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-[#F8FAFC] dark:bg-[#08090B] text-gray-900 dark:text-white min-h-screen relative shadow-2xl overflow-hidden transition-colors duration-200 border-x border-gray-100 dark:border-[#14181E] flex flex-col">
-      {/* Dynamic Top Bar Spacer */}
-      <div
-        className="h-[env(safe-area-inset-top)] sticky top-0 z-[110] border-b transition-colors duration-200"
-        style={{
-          backgroundColor: theme === 'dark' ? '#0D0F12' : '#FFFFFF',
-          borderColor: theme === 'dark' ? '#22272F' : '#F1F5F9'
-        }}
-      />
-
-      <div className="flex-1 overflow-y-auto pb-24">
-        {/* Header - Only on Home */}
-        {activeTab === 'home' && (
-          <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
+    <div className="max-w-md mx-auto bg-[#F8FAFC] dark:bg-[#08090B] text-gray-900 dark:text-white min-h-screen pb-24 relative shadow-2xl overflow-hidden transition-colors duration-200 border-x border-gray-100 dark:border-[#14181E]">
+      {/* Header - Only on Home */}
+      {activeTab === 'home' && (
+        <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-2.5">
               <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-2xl flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
@@ -2078,7 +2045,6 @@ const handleDeleteTransaction = async () => {
           </section>
         )}
       </main>
-      </div>
 
       {/* Stats Detail Overlay */}
       <AnimatePresence>

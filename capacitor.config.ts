@@ -1,4 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 // Require Google Client ID to be provided at build time. Do NOT hardcode fallback values.
 const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID;
