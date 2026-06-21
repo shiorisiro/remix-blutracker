@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// VERSION_CODE/VERSION_NAME come from the GitHub Actions workflow (tied to the run number)
+// so every build installs as an update, never a downgrade. Falls back to 1 / "1.0" for
+// local builds where those env vars aren't set. Computed here as plain Groovy variables
+// (rather than inline inside the android{} block) to avoid AGP's versionCode/versionName
+// property setters choking on a null intermediate value.
+def envVersionCode = System.getenv("VERSION_CODE")
+def appVersionCode = envVersionCode ? envVersionCode.toInteger() : 1
+
+def envVersionName = System.getenv("VERSION_NAME")
+def appVersionName = envVersionName ?: "1.0"
+
 android {
     namespace = "com.blutracker.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,11 +19,10 @@ android {
         applicationId "com.blutracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // VERSION_CODE/VERSION_NAME come from the GitHub Actions workflow (tied to the
-        // run number) so every build installs as an update, never a downgrade.
-        // Falls back to 1 / "1.0" for local builds where those env vars aren't set.
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName (System.getenv("VERSION_NAME") ?: "1.0")
+        // See top of file: appVersionCode/appVersionName are derived from the
+        // VERSION_CODE/VERSION_NAME env vars set by the GitHub Actions workflow.
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
