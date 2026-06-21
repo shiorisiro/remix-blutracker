@@ -89,4 +89,10 @@ foreignObject {
   .recharts-tooltip-cursor {
     fill: rgba(255, 255, 255, 0.02) !important;
   }
+
+/* Status bar padding for Android */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
 }
