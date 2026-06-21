@@ -15,20 +15,9 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    
-    // TAMBAHKAN INI
-    signingConfigs {
-        release {
-            storeFile file("${rootDir}/app/blutracker.keystore")
-            storePassword "PASSWORD_YANG_KAMU_MASUKKAN"
-            keyAlias "blutracker"
-            keyPassword "PASSWORD_YANG_KAMU_MASUKKAN"
-        }
-    }
-    
+
     buildTypes {
         release {
-            signingConfig signingConfigs.release  // TAMBAHKAN INI
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
