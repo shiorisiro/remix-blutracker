@@ -63,17 +63,30 @@ jobs:
           -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
           -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-    - name: Verify APK exists and is actually signed
+    - name: Verify APK is actually signed (apksigner)
       run: |
         APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
         if [ ! -f "$APK_PATH" ]; then
           echo "::error::Expected APK not found at $APK_PATH"
           exit 1
         fi
-        if unzip -l "$APK_PATH" | grep -Eq "META-INF/.*\.(RSA|DSA|EC)$"; then
-          echo "APK signature block found - APK is signed. Size: $(stat -c%s "$APK_PATH") bytes."
+
+        # Locate apksigner from whatever Android SDK is on this runner.
+        SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+        APKSIGNER=$(find "$SDK_ROOT" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+        if [ -z "$APKSIGNER" ]; then
+          echo "::error::Could not locate apksigner under $SDK_ROOT. Cannot verify signing."
+          exit 1
+        fi
+        echo "Using apksigner: $APKSIGNER"
+
+        # apksigner is the authoritative tool for this - it understands v1/v2/v3
+        # signing schemes correctly, unlike grepping the zip for META-INF/*.RSA
+        # (which only catches legacy v1 signing and false-flags valid v2/v3 APKs).
+        if "$APKSIGNER" verify --verbose "$APK_PATH"; then
+          echo "APK signature verified OK. Size: $(stat -c%s "$APK_PATH") bytes."
         else
-          echo "::error::No signature block found inside the APK - it was built unsigned. Check the signing properties/secrets above."
+          echo "::error::apksigner reports this APK is NOT validly signed. Check the signing secrets/properties above."
           exit 1
         fi
 
