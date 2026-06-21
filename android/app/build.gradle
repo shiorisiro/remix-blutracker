@@ -8,16 +8,31 @@ android {
         applicationId "com.blutracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // VERSION_CODE/VERSION_NAME come from the GitHub Actions workflow (tied to the
+        // run number) so every build installs as an update, never a downgrade.
+        // Falls back to 1 / "1.0" for local builds where those env vars aren't set.
+        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
+        versionName (System.getenv("VERSION_NAME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
 
+    signingConfigs {
+        release {
+            // Left intentionally blank. When the build is invoked with
+            // -Pandroid.injected.signing.store.file / .store.password / .key.alias / .key.password
+            // (as our CI workflow does), AGP transparently substitutes this whole config with
+            // those injected values - that substitution only happens if a signingConfig is
+            // actually referenced by the build type below. Without this block, the CI
+            // properties are silently ignored and the APK comes out unsigned.
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
