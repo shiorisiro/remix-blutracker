@@ -45,7 +45,6 @@ import {
   CloudSun,
   CloudFog,
   CloudLightning,
-  CloudSnow,
   MapPin,
   SlidersHorizontal
 } from 'lucide-react';
@@ -196,10 +195,22 @@ export default function App() {
     }
   }, [user?.photoURL, user]);
 
-  // Weather widget (Dashboard) - functional first pass, styling to be revisited later.
-  // Uses the browser's own Geolocation API + Open-Meteo (free, no API key required).
+  // Weather widget (Dashboard) - styled with gradient cards, Indonesia climate only.
+  // Uses: Browser Geolocation API + Open-Meteo (free, no key) + BigDataCloud reverse geocoding (free, no key, client-side only).
   const [weatherStatus, setWeatherStatus] = useState<'loading' | 'success' | 'error' | 'denied'>('loading');
-  const [weatherData, setWeatherData] = useState<{ temp: number; code: number } | null>(null);
+  const [weatherData, setWeatherData] = useState<{
+    temp: number;
+    code: number;
+    isDay: boolean;
+    location: string;
+  } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Real-time clock for weather widget
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -210,14 +221,27 @@ export default function App() {
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`
-          );
-          if (!res.ok) throw new Error('Weather fetch failed');
-          const data = await res.json();
+          const [weatherRes, locRes] = await Promise.all([
+            fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,is_day&timezone=auto`
+            ),
+            fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`
+            ),
+          ]);
+          if (!weatherRes.ok) throw new Error('Weather fetch failed');
+          const weatherJson = await weatherRes.json();
+          const locJson = locRes.ok ? await locRes.json() : null;
+          const locationName =
+            locJson?.city ||
+            locJson?.locality ||
+            locJson?.principalSubdivision ||
+            'Lokasi Anda';
           setWeatherData({
-            temp: Math.round(data?.current?.temperature_2m),
-            code: data?.current?.weather_code,
+            temp: Math.round(weatherJson?.current?.temperature_2m),
+            code: weatherJson?.current?.weather_code,
+            isDay: weatherJson?.current?.is_day === 1,
+            location: locationName,
           });
           setWeatherStatus('success');
         } catch (e) {
@@ -229,19 +253,72 @@ export default function App() {
       { timeout: 10000 }
     );
   }, []);
+// WMO weather codes -> simple icon + label (https://open-meteo.com/en/docs)
+  // Indonesia climate mapping: gradients + icons + decorations (no snow).
+  const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
+    // Default: cloudy
+    const theme = {
+      gradient: isDay
+        ? 'from-sky-400 via-blue-400 to-blue-500'
+        : 'from-slate-700 via-slate-800 to-slate-900',
+      icon: Cloud,
+      label: 'Berawan',
+      decoration: isDay ? 'sun' : 'moon' as const,
+    };
 
-  // WMO weather codes -> simple icon + label (https://open-meteo.com/en/docs)
-  const getWeatherInfo = (code: number | undefined) => {
-    if (code === 0) return { icon: Sun, label: 'Cerah' };
-    if (code !== undefined && [1, 2, 3].includes(code)) return { icon: CloudSun, label: 'Cerah Berawan' };
-    if (code !== undefined && [45, 48].includes(code)) return { icon: CloudFog, label: 'Berkabut' };
-    if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: CloudRain, label: 'Hujan' };
-    if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) return { icon: CloudSnow, label: 'Salju' };
-    if (code !== undefined && [95, 96, 99].includes(code)) return { icon: CloudLightning, label: 'Badai Petir' };
-    return { icon: Cloud, label: 'Berawan' };
+    if (code === 0) {
+      return {
+        gradient: isDay
+          ? 'from-orange-400 via-amber-500 to-yellow-400'
+          : 'from-indigo-900 via-purple-900 to-slate-900',
+        icon: Sun,
+        label: 'Cerah',
+        decoration: isDay ? 'sun' : 'moon' as const,
+      };
+    }
+    if (code !== undefined && [1, 2, 3].includes(code)) {
+      return {
+        gradient: isDay
+          ? 'from-sky-400 via-blue-400 to-indigo-400'
+          : 'from-slate-700 via-slate-800 to-slate-900',
+        icon: CloudSun,
+        label: 'Cerah Berawan',
+        decoration: isDay ? 'sun' : 'moon' as const,
+      };
+    }
+    if (code !== undefined && [45, 48].includes(code)) {
+      return {
+        gradient: isDay
+          ? 'from-gray-400 via-gray-500 to-slate-500'
+          : 'from-slate-800 via-gray-900 to-slate-900',
+        icon: CloudFog,
+        label: 'Berkabut',
+        decoration: 'fog' as const,
+      };
+    }
+    if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+      return {
+        gradient: isDay
+          ? 'from-blue-500 via-blue-600 to-slate-600'
+          : 'from-slate-800 via-slate-900 to-gray-900',
+        icon: CloudRain,
+        label: 'Hujan',
+        decoration: 'rain' as const,
+      };
+    }
+    if (code !== undefined && [95, 96, 99].includes(code)) {
+      return {
+        gradient: isDay
+          ? 'from-slate-600 via-purple-700 to-slate-800'
+          : 'from-gray-900 via-purple-900 to-black',
+        icon: CloudLightning,
+        label: 'Badai Petir',
+        decoration: 'storm' as const,
+      };
+    }
+    return theme;
   };
-
-  const handleSelectAvatar = async (avatarId: string) => {
+const handleSelectAvatar = async (avatarId: string) => {
     if (avatarId === selectedAvatar || isSavingAvatar) return;
     const previousAvatar = selectedAvatar;
     setSelectedAvatar(avatarId);
@@ -1875,37 +1952,95 @@ const handleDeleteTransaction = async () => {
             </div>
 
             {/* Weather Widget - functional first pass, visual polish later */}
-            <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
+            <div className="relative overflow-hidden rounded-[24px] p-5 text-white shadow-lg transition-all duration-300">
               {weatherStatus === 'loading' && (
-                <>
-                  <Loader2 size={20} className="animate-spin text-gray-400" />
-                  <span className="text-xs text-gray-400">Mengambil data cuaca...</span>
-                </>
+                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
+                  <Loader2 size={20} className="animate-spin text-gray-500 dark:text-gray-400" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Mengambil data cuaca...</span>
+                </div>
               )}
               {weatherStatus === 'denied' && (
-                <>
-                  <MapPin size={20} className="text-gray-400" />
-                  <span className="text-xs text-gray-400">Izinkan akses lokasi untuk melihat cuaca</span>
-                </>
+                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
+                  <MapPin size={20} className="text-gray-500 dark:text-gray-400" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Izinkan akses lokasi untuk melihat cuaca</span>
+                </div>
               )}
               {weatherStatus === 'error' && (
-                <>
-                  <Cloud size={20} className="text-gray-400" />
-                  <span className="text-xs text-gray-400">Cuaca tidak tersedia saat ini</span>
-                </>
+                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
+                  <Cloud size={20} className="text-gray-500 dark:text-gray-400" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Cuaca tidak tersedia saat ini</span>
+                </div>
               )}
               {weatherStatus === 'success' && weatherData && (() => {
-                const { icon: WeatherIcon, label } = getWeatherInfo(weatherData.code);
+                const theme = getWeatherTheme(weatherData.code, weatherData.isDay);
+                const WeatherIcon = theme.icon;
                 return (
-                  <>
-                    <WeatherIcon size={24} className="text-amber-400" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-800 dark:text-white">{weatherData.temp}°C · {label}</p>
+                  <div className={`bg-gradient-to-br ${theme.gradient} p-5 rounded-[24px] relative overflow-hidden`}>
+                    {/* Decorations */}
+                    {theme.decoration === 'sun' && (
+                      <>
+                        <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-yellow-300/25 blur-2xl" />
+                        <div className="absolute top-2 right-4 w-10 h-10 rounded-full bg-yellow-200/40 blur-sm" />
+                      </>
+                    )}
+                    {theme.decoration === 'moon' && (
+                      <>
+                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-yellow-100/15 blur-2xl" />
+                        <div className="absolute top-3 right-6 w-8 h-8 rounded-full bg-yellow-50/20 blur-sm" />
+                      </>
+                    )}
+                    {theme.decoration === 'rain' && (
+                      <div className="absolute inset-0 opacity-20">
+                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
+                          <line x1="20" y1="0" x2="15" y2="30" stroke="white" strokeWidth="1" opacity="0.6" />
+                          <line x1="50" y1="0" x2="45" y2="35" stroke="white" strokeWidth="1" opacity="0.4" />
+                          <line x1="80" y1="0" x2="75" y2="25" stroke="white" strokeWidth="1" opacity="0.5" />
+                          <line x1="120" y1="0" x2="115" y2="30" stroke="white" strokeWidth="1" opacity="0.6" />
+                          <line x1="150" y1="0" x2="145" y2="35" stroke="white" strokeWidth="1" opacity="0.4" />
+                          <line x1="180" y1="0" x2="175" y2="25" stroke="white" strokeWidth="1" opacity="0.5" />
+                        </svg>
+                      </div>
+                    )}
+                    {theme.decoration === 'storm' && (
+                      <div className="absolute inset-0 opacity-15">
+                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
+                          <line x1="30" y1="0" x2="25" y2="30" stroke="white" strokeWidth="1.5" opacity="0.7" />
+                          <line x1="70" y1="0" x2="65" y2="40" stroke="white" strokeWidth="1" opacity="0.5" />
+                          <line x1="110" y1="0" x2="105" y2="35" stroke="white" strokeWidth="1.5" opacity="0.6" />
+                          <line x1="160" y1="0" x2="155" y2="30" stroke="white" strokeWidth="1" opacity="0.5" />
+                          <path d="M90 20 L100 35 L95 35 L105 50" stroke="#fbbf24" strokeWidth="2" fill="none" opacity="0.8" />
+                        </svg>
+                      </div>
+                    )}
+                    {theme.decoration === 'fog' && (
+                      <div className="absolute inset-0 opacity-10">
+                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
+                          <ellipse cx="50" cy="30" rx="40" ry="8" fill="white" />
+                          <ellipse cx="120" cy="50" rx="50" ry="10" fill="white" />
+                          <ellipse cx="80" cy="70" rx="35" ry="6" fill="white" />
+                        </svg>
+                      </div>
+                    )}
+
+                    <div className="relative z-10 flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <WeatherIcon size={18} strokeWidth={2.5} />
+                          <span className="text-sm font-medium opacity-90">{theme.label}</span>
+                        </div>
+                        <p className="text-4xl font-bold tracking-tight">{weatherData.temp}°</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold tabular-nums">{format(currentTime, 'HH:mm')}</p>
+                        <p className="text-[10px] opacity-75 uppercase tracking-wider">{format(currentTime, 'EEE, MM-dd')}</p>
+                      </div>
                     </div>
-                  </>
+                    <p className="relative z-10 mt-3 text-xs opacity-80 font-medium">{weatherData.location}</p>
+                  </div>
                 );
               })()}
             </div>
+        
           </div>
         )}
 
