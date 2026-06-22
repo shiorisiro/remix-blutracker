@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Required for internet access (Supabase, Gemini, etc.) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Location permissions for Weather widget -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    
+    <!-- Camera permission for receipt scanner -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -28,6 +35,7 @@
 
         </activity>
 
+        <!-- File provider for sharing/exporting files (CSV, etc.) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
