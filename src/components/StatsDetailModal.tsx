@@ -9,7 +9,8 @@ import { TransactionItem } from './TransactionItem';
 import { cn } from '../lib/utils';
 
 export function StatsDetailModal({
-  setIsStatsDetailOpen,
+  embedded = false,
+  setIsStatsDetailOpen = () => {},
   selectedCategory,
   setSelectedCategory,
   CATEGORY_CONFIG,
@@ -173,15 +174,20 @@ export function StatsDetailModal({
     'General': '#95afc0',
   };
 
+  const WrapperTag: any = embedded ? 'div' : motion.div;
+  const wrapperProps: any = embedded
+    ? { className: "space-y-6" }
+    : {
+        initial: { y: '100%' },
+        animate: { y: 0 },
+        exit: { y: '100%' },
+        transition: { type: 'spring', damping: 25, stiffness: 200 },
+        className: "fixed inset-0 bg-[#F8FAFC] dark:bg-[#08090B] z-[150] flex flex-col"
+      };
+
   return (
-    <motion.div 
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-0 bg-[#F8FAFC] dark:bg-[#08090B] z-[150] flex flex-col"
-    >
-      <header className="p-6 bg-[#FFFFFF] dark:bg-[#0D0F12] border-b border-gray-100 dark:border-[#22272F] flex flex-col gap-4 transition-colors duration-200">
+    <WrapperTag {...wrapperProps}>
+      <header className={embedded ? "flex flex-col gap-4" : "p-6 bg-[#FFFFFF] dark:bg-[#0D0F12] border-b border-gray-100 dark:border-[#22272F] flex flex-col gap-4 transition-colors duration-200"}>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             {selectedCategory && (
@@ -192,19 +198,21 @@ export function StatsDetailModal({
                 <ArrowDownLeft className="rotate-45" size={18} />
               </button>
             )}
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-              {selectedCategory ? `Statistik ${selectedCategory}` : 'Detail Statistik'}
+            <h2 className={embedded ? "font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display" : "text-xl font-bold text-gray-800 dark:text-white"}>
+              {selectedCategory ? `Statistik ${selectedCategory}` : (embedded ? 'Semua Statistik' : 'Detail Statistik')}
             </h2>
           </div>
-          <button 
-            onClick={() => {
-              setIsStatsDetailOpen(false);
-              setSelectedCategory(null);
-            }}
-            className="p-2 bg-gray-100 dark:bg-[#14181E] text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-[#1a1f28] transition-colors"
-          >
-            <X size={20} />
-          </button>
+          {!embedded && (
+            <button 
+              onClick={() => {
+                setIsStatsDetailOpen(false);
+                setSelectedCategory(null);
+              }}
+              className="p-2 bg-gray-100 dark:bg-[#14181E] text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-[#1a1f28] transition-colors"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Month Picker for Stats */}
@@ -225,7 +233,7 @@ export function StatsDetailModal({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className={embedded ? "space-y-8" : "flex-1 overflow-y-auto p-6 space-y-8"}>
         {!selectedCategory ? (
           <>
             {/* === RINGKASAN PENGELUARAN: LINE CHART === */}
@@ -586,6 +594,6 @@ export function StatsDetailModal({
           </>
         )}
       </div>
-    </motion.div>
+    </WrapperTag>
   );
 }
