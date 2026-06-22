@@ -38,9 +38,17 @@ import {
   Heart,
   Coffee,
   Rocket,
-  Flame
+  Flame,
+  TrendingDown,
+  Cloud,
+  CloudRain,
+  CloudSun,
+  CloudFog,
+  CloudLightning,
+  CloudSnow,
+  MapPin
 } from 'lucide-react';
-import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths } from 'date-fns';
+import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
   BarChart, 
@@ -186,6 +194,51 @@ export default function App() {
       setSelectedAvatar(DEFAULT_AVATAR_ID);
     }
   }, [user?.photoURL, user]);
+
+  // Weather widget (Dashboard) - functional first pass, styling to be revisited later.
+  // Uses the browser's own Geolocation API + Open-Meteo (free, no API key required).
+  const [weatherStatus, setWeatherStatus] = useState<'loading' | 'success' | 'error' | 'denied'>('loading');
+  const [weatherData, setWeatherData] = useState<{ temp: number; code: number } | null>(null);
+
+  useEffect(() => {
+    if (!('geolocation' in navigator)) {
+      setWeatherStatus('error');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`
+          );
+          if (!res.ok) throw new Error('Weather fetch failed');
+          const data = await res.json();
+          setWeatherData({
+            temp: Math.round(data?.current?.temperature_2m),
+            code: data?.current?.weather_code,
+          });
+          setWeatherStatus('success');
+        } catch (e) {
+          console.error('Gagal mengambil data cuaca:', e);
+          setWeatherStatus('error');
+        }
+      },
+      () => setWeatherStatus('denied'),
+      { timeout: 10000 }
+    );
+  }, []);
+
+  // WMO weather codes -> simple icon + label (https://open-meteo.com/en/docs)
+  const getWeatherInfo = (code: number | undefined) => {
+    if (code === 0) return { icon: Sun, label: 'Cerah' };
+    if (code !== undefined && [1, 2, 3].includes(code)) return { icon: CloudSun, label: 'Cerah Berawan' };
+    if (code !== undefined && [45, 48].includes(code)) return { icon: CloudFog, label: 'Berkabut' };
+    if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: CloudRain, label: 'Hujan' };
+    if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) return { icon: CloudSnow, label: 'Salju' };
+    if (code !== undefined && [95, 96, 99].includes(code)) return { icon: CloudLightning, label: 'Badai Petir' };
+    return { icon: Cloud, label: 'Berawan' };
+  };
 
   const handleSelectAvatar = async (avatarId: string) => {
     if (avatarId === selectedAvatar || isSavingAvatar) return;
@@ -562,6 +615,48 @@ export default function App() {
       };
     });
   }, [transactions]);
+
+  // Weekly trend widgets (Dashboard): this 7-day window vs the 7 days before it.
+  // Income: going up = good (green). Expense: going up = "boros" = bad (red).
+  const weeklyTrend = useMemo(() => {
+    const currentStart = startOfDay(subDays(new Date(), 6));
+    const currentEnd = endOfDay(new Date());
+    const previousEnd = endOfDay(subDays(currentStart, 1));
+    const previousStart = startOfDay(subDays(previousEnd, 6));
+
+    const sumInRange = (type: 'income' | 'expense', start: Date, end: Date) =>
+      transactions
+        .filter(t => {
+          if (t.type !== type) return false;
+          const d = parseISO(t.date);
+          return d >= start && d <= end;
+        })
+        .reduce((acc, t) => acc + t.amount, 0);
+
+    // null = no baseline last week to compare against ("Baru")
+    const pctChange = (curr: number, prev: number): number | null => {
+      if (prev === 0) return curr === 0 ? null : 100;
+      return ((curr - prev) / prev) * 100;
+    };
+
+    const currentIncome = sumInRange('income', currentStart, currentEnd);
+    const previousIncome = sumInRange('income', previousStart, previousEnd);
+    const currentExpense = sumInRange('expense', currentStart, currentEnd);
+    const previousExpense = sumInRange('expense', previousStart, previousEnd);
+
+    return {
+      income: {
+        percent: pctChange(currentIncome, previousIncome),
+        isGood: currentIncome >= previousIncome,
+        sparkline: chartData.map(d => d.income),
+      },
+      expense: {
+        percent: pctChange(currentExpense, previousExpense),
+        isGood: currentExpense <= previousExpense,
+        sparkline: chartData.map(d => d.expense),
+      },
+    };
+  }, [transactions, chartData]);
 
   const monthlyChartData = useMemo(() => {
     const start = startOfMonth(selectedMonth);
@@ -1684,6 +1779,87 @@ const handleDeleteTransaction = async () => {
 
       {/* Main Content */}
       <main className="p-6 space-y-8">
+        {activeTab === 'home' && (
+          <div className="space-y-4">
+            {/* Weekly Trend Widgets */}
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { key: 'income', title: 'Pemasukan', data: weeklyTrend.income, color: '#10b981', fillId: 'sparkIncome' },
+                { key: 'expense', title: 'Pengeluaran', data: weeklyTrend.expense, color: '#ef4444', fillId: 'sparkExpense' },
+              ] as const).map(({ key, title, data, color, fillId }) => {
+                const isUp = data.percent !== null && data.percent >= 0;
+                const TrendIcon = isUp ? TrendingUp : TrendingDown;
+                const statusColor = data.percent === null
+                  ? 'text-gray-400 dark:text-gray-500'
+                  : data.isGood
+                    ? 'text-emerald-500 dark:text-emerald-400'
+                    : 'text-rose-500 dark:text-rose-400';
+                return (
+                  <div
+                    key={key}
+                    className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] transition-colors duration-200"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">{title}</span>
+                      <TrendIcon size={14} className={statusColor} />
+                    </div>
+                    <p className={cn("text-lg font-extrabold", statusColor)}>
+                      {data.percent === null ? 'Baru' : `${data.percent >= 0 ? '+' : ''}${Math.round(data.percent)}%`}
+                    </p>
+                    <div className="h-10 -mx-1 mt-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.sparkline.map((v) => ({ v }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                              <stop offset="95%" stopColor={color} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#${fillId})`} dot={false} isAnimationActive={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">vs minggu lalu</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Weather Widget - functional first pass, visual polish later */}
+            <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
+              {weatherStatus === 'loading' && (
+                <>
+                  <Loader2 size={20} className="animate-spin text-gray-400" />
+                  <span className="text-xs text-gray-400">Mengambil data cuaca...</span>
+                </>
+              )}
+              {weatherStatus === 'denied' && (
+                <>
+                  <MapPin size={20} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Izinkan akses lokasi untuk melihat cuaca</span>
+                </>
+              )}
+              {weatherStatus === 'error' && (
+                <>
+                  <Cloud size={20} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Cuaca tidak tersedia saat ini</span>
+                </>
+              )}
+              {weatherStatus === 'success' && weatherData && (() => {
+                const { icon: WeatherIcon, label } = getWeatherInfo(weatherData.code);
+                return (
+                  <>
+                    <WeatherIcon size={24} className="text-amber-400" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 dark:text-white">{weatherData.temp}°C · {label}</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'stats' && (
           <div className="space-y-8">
             {/* Weekly Chart - moved here from Dashboard */}
