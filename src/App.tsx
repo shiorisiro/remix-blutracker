@@ -45,8 +45,10 @@ import {
   CloudSun,
   CloudFog,
   CloudLightning,
+  CloudSnow,
   MapPin,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Zap
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -195,22 +197,12 @@ export default function App() {
     }
   }, [user?.photoURL, user]);
 
-  // Weather widget (Dashboard) - styled with gradient cards, Indonesia climate only.
-  // Uses: Browser Geolocation API + Open-Meteo (free, no key) + BigDataCloud reverse geocoding (free, no key, client-side only).
+  // Weather widget (Dashboard). Sumber data:
+  // - Open-Meteo (cuaca, gratis, tanpa API key)
+  // - BigDataCloud reverse-geocode-client (nama lokasi, gratis, tanpa API key, client-side)
   const [weatherStatus, setWeatherStatus] = useState<'loading' | 'success' | 'error' | 'denied'>('loading');
-  const [weatherData, setWeatherData] = useState<{
-    temp: number;
-    code: number;
-    isDay: boolean;
-    location: string;
-  } | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Real-time clock for weather widget
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const [weatherData, setWeatherData] = useState<{ temp: number; code: number; isDay: boolean } | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -219,106 +211,80 @@ export default function App() {
     }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        const { latitude, longitude } = pos.coords;
+
         try {
-          const { latitude, longitude } = pos.coords;
-          const [weatherRes, locRes] = await Promise.all([
-            fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,is_day&timezone=auto`
-            ),
-            fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`
-            ),
-          ]);
-          if (!weatherRes.ok) throw new Error('Weather fetch failed');
-          const weatherJson = await weatherRes.json();
-          const locJson = locRes.ok ? await locRes.json() : null;
-          const locationName =
-            locJson?.city ||
-            locJson?.locality ||
-            locJson?.principalSubdivision ||
-            'Lokasi Anda';
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,is_day&timezone=auto`
+          );
+          if (!res.ok) throw new Error('Weather fetch failed');
+          const data = await res.json();
           setWeatherData({
-            temp: Math.round(weatherJson?.current?.temperature_2m),
-            code: weatherJson?.current?.weather_code,
-            isDay: weatherJson?.current?.is_day === 1,
-            location: locationName,
+            temp: Math.round(data?.current?.temperature_2m),
+            code: data?.current?.weather_code,
+            isDay: data?.current?.is_day === 1,
           });
           setWeatherStatus('success');
         } catch (e) {
           console.error('Gagal mengambil data cuaca:', e);
           setWeatherStatus('error');
         }
+
+        // Nama lokasi - kalau gagal, widget tetap jalan tanpa nama lokasi (bukan error fatal)
+        try {
+          const geoRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`
+          );
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            setLocationName(geoData?.city || geoData?.locality || geoData?.principalSubdivision || null);
+          }
+        } catch (e) {
+          console.error('Gagal mengambil nama lokasi:', e);
+        }
       },
       () => setWeatherStatus('denied'),
       { timeout: 10000 }
     );
   }, []);
-// WMO weather codes -> simple icon + label (https://open-meteo.com/en/docs)
-  // Indonesia climate mapping: gradients + icons + decorations (no snow).
-  const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
-    // Default: cloudy
-    const theme = {
-      gradient: isDay
-        ? 'from-sky-400 via-blue-400 to-blue-500'
-        : 'from-slate-700 via-slate-800 to-slate-900',
-      icon: Cloud,
-      label: 'Berawan',
-      decoration: isDay ? 'sun' : 'moon' as const,
-    };
 
-    if (code === 0) {
-      return {
-        gradient: isDay
-          ? 'from-orange-400 via-amber-500 to-yellow-400'
-          : 'from-indigo-900 via-purple-900 to-slate-900',
-        icon: Sun,
-        label: 'Cerah',
-        decoration: isDay ? 'sun' : 'moon' as const,
-      };
-    }
-    if (code !== undefined && [1, 2, 3].includes(code)) {
-      return {
-        gradient: isDay
-          ? 'from-sky-400 via-blue-400 to-indigo-400'
-          : 'from-slate-700 via-slate-800 to-slate-900',
-        icon: CloudSun,
-        label: 'Cerah Berawan',
-        decoration: isDay ? 'sun' : 'moon' as const,
-      };
-    }
-    if (code !== undefined && [45, 48].includes(code)) {
-      return {
-        gradient: isDay
-          ? 'from-gray-400 via-gray-500 to-slate-500'
-          : 'from-slate-800 via-gray-900 to-slate-900',
-        icon: CloudFog,
-        label: 'Berkabut',
-        decoration: 'fog' as const,
-      };
-    }
-    if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
-      return {
-        gradient: isDay
-          ? 'from-blue-500 via-blue-600 to-slate-600'
-          : 'from-slate-800 via-slate-900 to-gray-900',
-        icon: CloudRain,
-        label: 'Hujan',
-        decoration: 'rain' as const,
-      };
-    }
-    if (code !== undefined && [95, 96, 99].includes(code)) {
-      return {
-        gradient: isDay
-          ? 'from-slate-600 via-purple-700 to-slate-800'
-          : 'from-gray-900 via-purple-900 to-black',
-        icon: CloudLightning,
-        label: 'Badai Petir',
-        decoration: 'storm' as const,
-      };
-    }
-    return theme;
+  // WMO weather codes -> kategori cuaca yang relevan untuk Indonesia (tanpa salju).
+  // Tiap kategori punya gradien siang & malam sendiri.
+  const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
+    let category: 'cerah' | 'berawan' | 'hujan' | 'badai' = 'berawan';
+    let label = 'Berawan';
+
+    if (code === 0) { category = 'cerah'; label = 'Cerah'; }
+    else if (code !== undefined && [1, 2, 3].includes(code)) { category = 'berawan'; label = 'Cerah Berawan'; }
+    else if (code !== undefined && [45, 48].includes(code)) { category = 'berawan'; label = 'Berkabut'; }
+    else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { category = 'hujan'; label = 'Hujan'; }
+    else if (code !== undefined && [95, 96, 99].includes(code)) { category = 'badai'; label = 'Badai Petir'; }
+    // Kode salju (71-77, 85, 86) secara praktis nggak pernah muncul di Indonesia - fallback ke 'berawan'.
+
+    const THEMES = {
+      cerah: {
+        day: { gradient: 'from-orange-400 via-red-400 to-amber-300', icon: Sun, iconColor: 'text-amber-100' },
+        night: { gradient: 'from-slate-900 via-indigo-950 to-slate-800', icon: Moon, iconColor: 'text-indigo-200' },
+      },
+      berawan: {
+        day: { gradient: 'from-sky-400 via-blue-400 to-sky-300', icon: CloudSun, iconColor: 'text-white' },
+        night: { gradient: 'from-slate-800 via-blue-950 to-slate-900', icon: Cloud, iconColor: 'text-slate-300' },
+      },
+      hujan: {
+        day: { gradient: 'from-blue-600 via-blue-700 to-slate-700', icon: CloudRain, iconColor: 'text-blue-100' },
+        night: { gradient: 'from-slate-900 via-blue-950 to-black', icon: CloudRain, iconColor: 'text-blue-300' },
+      },
+      badai: {
+        day: { gradient: 'from-slate-700 via-slate-800 to-zinc-800', icon: CloudLightning, iconColor: 'text-amber-200' },
+        night: { gradient: 'from-zinc-950 via-slate-900 to-black', icon: CloudLightning, iconColor: 'text-amber-300' },
+      },
+    } as const;
+
+    const variant = isDay ? THEMES[category].day : THEMES[category].night;
+    return { ...variant, label, category };
   };
-const handleSelectAvatar = async (avatarId: string) => {
+
+  const handleSelectAvatar = async (avatarId: string) => {
     if (avatarId === selectedAvatar || isSavingAvatar) return;
     const previousAvatar = selectedAvatar;
     setSelectedAvatar(avatarId);
@@ -1610,7 +1576,7 @@ const handleDeleteTransaction = async () => {
           <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-2.5">
-              <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-full flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
+              <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-2xl flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
                 <img
                   src="./logo.png"
                   alt="BluTracker"
@@ -1951,96 +1917,74 @@ const handleDeleteTransaction = async () => {
               })}
             </div>
 
-            {/* Weather Widget - functional first pass, visual polish later */}
-            <div className="relative overflow-hidden rounded-[24px] p-5 text-white shadow-lg transition-all duration-300">
+            {/* Weather Widget */}
+            <div className="rounded-[24px] overflow-hidden">
               {weatherStatus === 'loading' && (
-                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
-                  <Loader2 size={20} className="animate-spin text-gray-500 dark:text-gray-400" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Mengambil data cuaca...</span>
+                <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
+                  <Loader2 size={20} className="animate-spin text-gray-400" />
+                  <span className="text-xs text-gray-400">Mengambil data cuaca...</span>
                 </div>
               )}
               {weatherStatus === 'denied' && (
-                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
-                  <MapPin size={20} className="text-gray-500 dark:text-gray-400" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Izinkan akses lokasi untuk melihat cuaca</span>
+                <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
+                  <MapPin size={20} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Izinkan akses lokasi untuk melihat cuaca</span>
                 </div>
               )}
               {weatherStatus === 'error' && (
-                <div className="flex items-center gap-3 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 p-5 rounded-[24px]">
-                  <Cloud size={20} className="text-gray-500 dark:text-gray-400" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Cuaca tidak tersedia saat ini</span>
+                <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
+                  <Cloud size={20} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Cuaca tidak tersedia saat ini</span>
                 </div>
               )}
               {weatherStatus === 'success' && weatherData && (() => {
-                const theme = getWeatherTheme(weatherData.code, weatherData.isDay);
-                const WeatherIcon = theme.icon;
+                const { gradient, icon: WeatherIcon, iconColor, label, category } = getWeatherTheme(weatherData.code, weatherData.isDay);
                 return (
-                  <div className={`bg-gradient-to-br ${theme.gradient} p-5 rounded-[24px] relative overflow-hidden`}>
-                    {/* Decorations */}
-                    {theme.decoration === 'sun' && (
-                      <>
-                        <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-yellow-300/25 blur-2xl" />
-                        <div className="absolute top-2 right-4 w-10 h-10 rounded-full bg-yellow-200/40 blur-sm" />
-                      </>
-                    )}
-                    {theme.decoration === 'moon' && (
-                      <>
-                        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-yellow-100/15 blur-2xl" />
-                        <div className="absolute top-3 right-6 w-8 h-8 rounded-full bg-yellow-50/20 blur-sm" />
-                      </>
-                    )}
-                    {theme.decoration === 'rain' && (
-                      <div className="absolute inset-0 opacity-20">
-                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
-                          <line x1="20" y1="0" x2="15" y2="30" stroke="white" strokeWidth="1" opacity="0.6" />
-                          <line x1="50" y1="0" x2="45" y2="35" stroke="white" strokeWidth="1" opacity="0.4" />
-                          <line x1="80" y1="0" x2="75" y2="25" stroke="white" strokeWidth="1" opacity="0.5" />
-                          <line x1="120" y1="0" x2="115" y2="30" stroke="white" strokeWidth="1" opacity="0.6" />
-                          <line x1="150" y1="0" x2="145" y2="35" stroke="white" strokeWidth="1" opacity="0.4" />
-                          <line x1="180" y1="0" x2="175" y2="25" stroke="white" strokeWidth="1" opacity="0.5" />
-                        </svg>
-                      </div>
-                    )}
-                    {theme.decoration === 'storm' && (
-                      <div className="absolute inset-0 opacity-15">
-                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
-                          <line x1="30" y1="0" x2="25" y2="30" stroke="white" strokeWidth="1.5" opacity="0.7" />
-                          <line x1="70" y1="0" x2="65" y2="40" stroke="white" strokeWidth="1" opacity="0.5" />
-                          <line x1="110" y1="0" x2="105" y2="35" stroke="white" strokeWidth="1.5" opacity="0.6" />
-                          <line x1="160" y1="0" x2="155" y2="30" stroke="white" strokeWidth="1" opacity="0.5" />
-                          <path d="M90 20 L100 35 L95 35 L105 50" stroke="#fbbf24" strokeWidth="2" fill="none" opacity="0.8" />
-                        </svg>
-                      </div>
-                    )}
-                    {theme.decoration === 'fog' && (
-                      <div className="absolute inset-0 opacity-10">
-                        <svg className="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
-                          <ellipse cx="50" cy="30" rx="40" ry="8" fill="white" />
-                          <ellipse cx="120" cy="50" rx="50" ry="10" fill="white" />
-                          <ellipse cx="80" cy="70" rx="35" ry="6" fill="white" />
-                        </svg>
-                      </div>
-                    )}
-
-                    <div className="relative z-10 flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <WeatherIcon size={18} strokeWidth={2.5} />
-                          <span className="text-sm font-medium opacity-90">{theme.label}</span>
+                  <div className={cn("relative bg-gradient-to-br p-5 text-white overflow-hidden", gradient)}>
+                    {/* Decorations - dijaga ringan, cuma CSS/SVG statis */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                      {category === 'cerah' && weatherData.isDay && (
+                        <div className="absolute -right-6 -top-10 w-32 h-32 rounded-full bg-amber-200/30 blur-md" />
+                      )}
+                      {category === 'cerah' && !weatherData.isDay && (
+                        <div className="absolute -right-4 -top-8 w-24 h-24 rounded-full bg-yellow-100/20 blur-md" />
+                      )}
+                      {category === 'berawan' && (
+                        <div className="absolute -right-8 top-2 w-28 h-16 rounded-full bg-white/10 blur-sm" />
+                      )}
+                      {category === 'hujan' && (
+                        <div className="absolute inset-0 flex gap-2.5 justify-end pr-4 opacity-25">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="w-px h-full bg-white" style={{ transform: 'rotate(12deg)' }} />
+                          ))}
                         </div>
-                        <p className="text-4xl font-bold tracking-tight">{weatherData.temp}°</p>
+                      )}
+                      {category === 'badai' && (
+                        <Zap size={40} className="absolute right-6 top-3 text-amber-200/40 rotate-12" />
+                      )}
+                    </div>
+
+                    <div className="relative flex items-start justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <WeatherIcon size={16} className={iconColor} />
+                        <span className="text-xs font-semibold">{label}</span>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-semibold tabular-nums">{format(currentTime, 'HH:mm')}</p>
-                        <p className="text-[10px] opacity-75 uppercase tracking-wider">{format(currentTime, 'EEE, MM-dd')}</p>
+                        <p className="text-xs font-bold leading-tight">{format(new Date(), 'HH:mm')}</p>
+                        <p className="text-[10px] opacity-70 uppercase leading-tight">{format(new Date(), 'EEE dd-MM', { locale: id })}</p>
                       </div>
                     </div>
-                    <p className="relative z-10 mt-3 text-xs opacity-80 font-medium">{weatherData.location}</p>
+
+                    <div className="relative flex items-end justify-between mt-3">
+                      <p className="text-3xl font-extrabold leading-none">{weatherData.temp}°</p>
+                      {locationName && (
+                        <p className="text-[10px] font-semibold opacity-80">{locationName}</p>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
             </div>
-        
           </div>
         )}
 
