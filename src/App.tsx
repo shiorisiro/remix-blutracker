@@ -89,12 +89,12 @@ const getGreeting = () => {
 // array's `icon`/`bg` for an `imageUrl` per entry - the picker UI and the
 // persistence logic (selectedAvatar / handleSelectAvatar) don't need to change.
 const AVATAR_OPTIONS = [
-  { id: 'avatar-1', icon: Smile, bg: 'bg-amber-400' },
-  { id: 'avatar-2', icon: Star, bg: 'bg-sky-400' },
-  { id: 'avatar-3', icon: Heart, bg: 'bg-rose-400' },
-  { id: 'avatar-4', icon: Coffee, bg: 'bg-orange-400' },
-  { id: 'avatar-5', icon: Rocket, bg: 'bg-violet-400' },
-  { id: 'avatar-6', icon: Flame, bg: 'bg-red-400' },
+  { id: 'avatar-1', icon: Smile },
+  { id: 'avatar-2', icon: Star },
+  { id: 'avatar-3', icon: Heart },
+  { id: 'avatar-4', icon: Coffee },
+  { id: 'avatar-5', icon: Rocket },
+  { id: 'avatar-6', icon: Flame },
 ] as const;
 const DEFAULT_AVATAR_ID = AVATAR_OPTIONS[0].id;
 
@@ -177,6 +177,7 @@ export default function App() {
   // real photo URLs, so swapping in real images later needs no new storage.
   const [selectedAvatar, setSelectedAvatar] = useState<string>(DEFAULT_AVATAR_ID);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   useEffect(() => {
     if (user?.photoURL && AVATAR_OPTIONS.some(a => a.id === user.photoURL)) {
@@ -2060,9 +2061,13 @@ const handleDeleteTransaction = async () => {
                   const activeAvatar = AVATAR_OPTIONS.find(a => a.id === selectedAvatar) || AVATAR_OPTIONS[0];
                   const ActiveAvatarIcon = activeAvatar.icon;
                   return (
-                    <div className={cn("w-20 h-20 rounded-full flex items-center justify-center shadow-md", activeAvatar.bg)}>
-                      <ActiveAvatarIcon size={36} className="text-white" />
-                    </div>
+                    <button
+                      onClick={() => setIsAvatarPickerOpen(v => !v)}
+                      className="w-20 h-20 rounded-full flex items-center justify-center bg-gray-100 dark:bg-[#14181E] border border-gray-200 dark:border-[#22272F] text-gray-600 dark:text-[#CFFF0F] cursor-pointer hover:opacity-85 transition-all"
+                      title="Pilih avatar"
+                    >
+                      <ActiveAvatarIcon size={32} />
+                    </button>
                   );
                 })()}
 
@@ -2108,42 +2113,56 @@ const handleDeleteTransaction = async () => {
                       setTempName(defaultName);
                       setIsEditingName(true);
                     }}
-                    className="group flex items-center gap-1.5 cursor-pointer hover:opacity-85 transition-all"
+                    className="relative inline-flex items-center justify-center cursor-pointer hover:opacity-85 transition-all"
                   >
                     <span className="font-bold text-lg tracking-tight text-gray-950 dark:text-white">
                       {user.displayName || user.email?.split('@')[0] || 'Pengguna'}
                     </span>
-                    <Edit2 size={13} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#CFFF0F]" />
+                    <Edit2 size={12} className="absolute -right-4 text-gray-300 dark:text-gray-600" />
                   </div>
                 )}
                 <p className="text-xs text-gray-400">{user.email}</p>
 
-                {/* Avatar Picker */}
-                <div className="w-full pt-4 border-t border-gray-100 dark:border-[#22272F]">
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Pilih Avatar</p>
-                  <div className="grid grid-cols-6 gap-2">
-                    {AVATAR_OPTIONS.map((avatar) => {
-                      const AvatarIcon = avatar.icon;
-                      const isActive = selectedAvatar === avatar.id;
-                      return (
-                        <button
-                          key={avatar.id}
-                          onClick={() => handleSelectAvatar(avatar.id)}
-                          disabled={isSavingAvatar}
-                          className={cn(
-                            "aspect-square rounded-2xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-50",
-                            avatar.bg,
-                            isActive ? "ring-2 ring-offset-2 ring-[#CFFF0F] ring-offset-white dark:ring-offset-[#13161A] scale-105" : "opacity-50 hover:opacity-90"
-                          )}
-                          title={avatar.id}
-                        >
-                          <AvatarIcon size={18} className="text-white" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-2 text-center">Avatar custom (foto sendiri) akan tersedia di update berikutnya</p>
-                </div>
+                {/* Avatar Picker - opens on click of the avatar above */}
+                <AnimatePresence>
+                  {isAvatarPickerOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="w-full overflow-hidden"
+                    >
+                      <div className="w-full pt-4 border-t border-gray-100 dark:border-[#22272F]">
+                        <div className="grid grid-cols-6 gap-2">
+                          {AVATAR_OPTIONS.map((avatar) => {
+                            const AvatarIcon = avatar.icon;
+                            const isActive = selectedAvatar === avatar.id;
+                            return (
+                              <button
+                                key={avatar.id}
+                                onClick={async () => {
+                                  await handleSelectAvatar(avatar.id);
+                                  setIsAvatarPickerOpen(false);
+                                }}
+                                disabled={isSavingAvatar}
+                                className={cn(
+                                  "aspect-square rounded-2xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-50",
+                                  isActive
+                                    ? "bg-[#CFFF0F]/15 ring-2 ring-[#CFFF0F] text-gray-950 dark:text-[#CFFF0F]"
+                                    : "bg-gray-50 dark:bg-[#0D0F12] text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-[#14181E]"
+                                )}
+                                title={avatar.id}
+                              >
+                                <AvatarIcon size={18} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-2 text-center">Avatar custom (foto sendiri) akan tersedia di update berikutnya</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <div className="bg-white dark:bg-[#13161A] p-8 rounded-[32px] border border-dashed border-gray-200 dark:border-[#22272F] flex flex-col items-center text-center gap-3 transition-colors duration-200">
