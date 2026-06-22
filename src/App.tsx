@@ -1610,7 +1610,7 @@ const handleDeleteTransaction = async () => {
           <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-2.5">
-              <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-2xl flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
+              <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-full flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
                 <img
                   src="./logo.png"
                   alt="BluTracker"
