@@ -618,13 +618,14 @@ export default function App() {
     });
   }, [transactions]);
 
-  // Weekly trend widgets (Dashboard): this 7-day window vs the 7 days before it.
-  // Income: going up = good (green). Expense: going up = "boros" = bad (red).
+  // Trend widgets (Dashboard): hari ini vs kemarin. Sparkline tetap nunjukin 7 hari
+  // terakhir biar kelihatan arah trennya, tapi angka %-nya day-over-day.
+  // Income: naik = good (green). Expense: naik = "boros" = bad (red).
   const weeklyTrend = useMemo(() => {
-    const currentStart = startOfDay(subDays(new Date(), 6));
-    const currentEnd = endOfDay(new Date());
-    const previousEnd = endOfDay(subDays(currentStart, 1));
-    const previousStart = startOfDay(subDays(previousEnd, 6));
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
+    const yesterdayStart = startOfDay(subDays(new Date(), 1));
+    const yesterdayEnd = endOfDay(subDays(new Date(), 1));
 
     const sumInRange = (type: 'income' | 'expense', start: Date, end: Date) =>
       transactions
@@ -635,16 +636,16 @@ export default function App() {
         })
         .reduce((acc, t) => acc + t.amount, 0);
 
-    // null = no baseline last week to compare against ("Baru")
+    // null = kemarin nggak ada transaksi buat dibandingin, persentase nggak bisa dihitung ("Baru")
     const pctChange = (curr: number, prev: number): number | null => {
-      if (prev === 0) return curr === 0 ? null : 100;
+      if (prev === 0) return null;
       return ((curr - prev) / prev) * 100;
     };
 
-    const currentIncome = sumInRange('income', currentStart, currentEnd);
-    const previousIncome = sumInRange('income', previousStart, previousEnd);
-    const currentExpense = sumInRange('expense', currentStart, currentEnd);
-    const previousExpense = sumInRange('expense', previousStart, previousEnd);
+    const currentIncome = sumInRange('income', todayStart, todayEnd);
+    const previousIncome = sumInRange('income', yesterdayStart, yesterdayEnd);
+    const currentExpense = sumInRange('expense', todayStart, todayEnd);
+    const previousExpense = sumInRange('expense', yesterdayStart, yesterdayEnd);
 
     return {
       income: {
@@ -1867,7 +1868,7 @@ const handleDeleteTransaction = async () => {
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
-                    <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">vs minggu lalu</p>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">vs kemarin</p>
                   </div>
                 );
               })}
