@@ -46,7 +46,8 @@ import {
   CloudFog,
   CloudLightning,
   CloudSnow,
-  MapPin
+  MapPin,
+  SlidersHorizontal
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -440,6 +441,7 @@ export default function App() {
   const [newIsSettled, setNewIsSettled] = useState(false);
 
   // Filter & Sort State
+  const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -2093,6 +2095,78 @@ const handleDeleteTransaction = async () => {
                 >
                   <TrendingUp size={18} className={cn(sortOrder === 'asc' ? "rotate-180" : "")} />
                 </button>
+
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsFilterPopupOpen(prev => !prev)}
+                    className={cn(
+                      "p-2 rounded-xl shadow-sm transition-colors cursor-pointer",
+                      (filterCategory !== 'All' || sortBy !== 'date')
+                        ? "bg-blu-primary text-gray-950"
+                        : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-blu-primary"
+                    )}
+                  >
+                    <SlidersHorizontal size={18} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isFilterPopupOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsFilterPopupOpen(false)} 
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-2 z-50 w-72 bg-white dark:bg-[#13161A] rounded-2xl border border-gray-100 dark:border-[#22272F] shadow-xl p-4 space-y-4"
+                        >
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Kategori</p>
+                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                              {['All', 'Food', 'Salary', 'Entertainment', 'Shopping', 'Bensin', 'Perbaikan', 'Bonus', 'General'].map((cat) => (
+                                <button
+                                  key={cat}
+                                  onClick={() => setFilterCategory(cat)}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer",
+                                    filterCategory === cat 
+                                      ? "bg-blu-primary text-gray-950 shadow-md shadow-blu-primary/20" 
+                                      : "bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  )}
+                                >
+                                  {cat}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Urutkan</p>
+                            <div className="flex gap-2">
+                              {(['date', 'amount', 'category'] as const).map((s) => (
+                                <button
+                                  key={s}
+                                  onClick={() => setSortBy(s)}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
+                                    sortBy === s 
+                                      ? "bg-blu-primary text-gray-950 shadow-md shadow-blu-primary/20" 
+                                      : "bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  )}
+                                >
+                                  {s === 'date' ? 'Tanggal' : s === 'amount' ? 'Jumlah' : 'Kategori'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
@@ -2113,43 +2187,6 @@ const handleDeleteTransaction = async () => {
                     {c === 'all' ? 'Semua' : c === 'personal' ? 'Pribadi' : 'Bisnis'}
                   </button>
                 ))}
-              </div>
-
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {['All', 'Food', 'Salary', 'Entertainment', 'Shopping', 'Bensin', 'Perbaikan', 'Bonus', 'General'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilterCategory(cat)}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-[10px] font-bold whitespace-nowrap transition-all",
-                      filterCategory === cat 
-                        ? "bg-blu-primary text-gray-950 shadow-md shadow-blu-primary/20" 
-                        : "bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-100"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                <span>Urutkan:</span>
-                <div className="flex gap-2">
-                  {(['date', 'amount', 'category'] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSortBy(s)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
-                        sortBy === s 
-                          ? "bg-blu-primary text-gray-950 shadow-md shadow-blu-primary/20" 
-                          : "bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-100"
-                      )}
-                    >
-                      {s === 'date' ? 'Tanggal' : s === 'amount' ? 'Jumlah' : 'Kategori'}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
