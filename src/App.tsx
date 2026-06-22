@@ -1908,55 +1908,10 @@ const handleDeleteTransaction = async () => {
 
         {activeTab === 'stats' && (
           <div className="space-y-8">
-            {/* Weekly Chart - moved here from Dashboard */}
-            <section className="bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F] transition-all">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Statistik Mingguan</h3>
-              </div>
-              <div className="h-56 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} tabIndex={-1} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
-                   <XAxis 
-                    dataKey="name" 
-                    axisLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
-                    tickLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
-                    tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }} 
-/> 
-                    <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }}
-                    tickFormatter={(value) => formatCurrency(value)}
-/>
-                    <Tooltip 
-  cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
-  contentStyle={{ 
-    borderRadius: '16px', 
-    border: '1px solid',
-    borderColor: theme === 'dark' ? '#22272F' : '#E2E8F0',
-    background: theme === 'dark' ? '#14181E' : '#FFFFFF',
-    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-    color: theme === 'dark' ? '#FFFFFF' : '#000000',
-    fontFamily: 'Outfit'
-  }}
-  formatter={(value: number, name: string) => {
-    if (value === 0) return ['', '']; // Sembunyikan nilai 0
-    return [formatCurrency(value), name === 'income' ? 'Pemasukan' : 'Pengeluaran'];
-  }}
-  labelFormatter={(label: string) => label}
-/>
-
-                    <Bar dataKey="income" fill={theme === 'dark' ? '#CFFF0F' : '#65A30D'} radius={[4, 4, 0, 0]} barSize={10} />
-                    <Bar dataKey="expense" fill={theme === 'dark' ? '#FF5E5E' : '#DC2626'} radius={[4, 4, 0, 0]} barSize={10} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-
             {/* Everything that used to live in the StatsDetailModal popup, now embedded directly in this tab */}
             <StatsDetailModal
               embedded
+              theme={theme}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               CATEGORY_CONFIG={CATEGORY_CONFIG}
