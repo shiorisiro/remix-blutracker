@@ -2182,19 +2182,51 @@ const handleDeleteTransaction = async () => {
 
             {/* Preferences */}
             <div className="bg-white dark:bg-[#13161A] rounded-[32px] border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
-              <div className="flex items-center justify-between p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-gray-50 dark:bg-[#14181E] rounded-xl flex items-center justify-center text-gray-500 dark:text-gray-300">
-                    {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
-                  </div>
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Mode Tampilan</span>
-                </div>
-                <button 
+              <div className="flex items-center justify-center p-5">
+                <button
                   onClick={toggleTheme}
-                  className="p-2 bg-gray-50 dark:bg-[#0D0F12] rounded-xl text-gray-500 hover:text-blu-primary dark:text-gray-400 transition-colors flex items-center justify-center cursor-pointer"
+                  className={cn(
+                    "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
+                    theme === 'light'
+                      ? "bg-sky-200"
+                      : "bg-slate-950 border border-slate-800"
+                  )}
                   title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
                 >
-                  {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                  {/* Background decorations */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {theme === 'light' ? (
+                      <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
+                        <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
+                      </div>
+                    ) : (
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
+                        <span className="text-white text-[6px] leading-none">✦</span>
+                        <span className="text-yellow-100 text-[4px] leading-none">✦</span>
+                        <span className="text-white text-[5px] leading-none">✦</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sliding knob */}
+                  <motion.div
+                    animate={{ x: theme === 'light' ? 2 : 26 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className={cn(
+                      "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10",
+                      theme === 'light' ? "bg-amber-400" : "bg-slate-700"
+                    )}
+                  >
+                    <motion.div
+                      animate={{ rotate: theme === 'light' ? 0 : 360 }}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                    >
+                      {theme === 'light'
+                        ? <Sun size={13} className="fill-white text-white" />
+                        : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
+                      }
+                    </motion.div>
+                  </motion.div>
                 </button>
               </div>
             </div>
