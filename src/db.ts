@@ -85,10 +85,10 @@ export const db = {
     }));
   },
 
-  async addTransaction(userId: string, tx: Omit<Transaction, 'id'>): Promise<Transaction> {
+  async addTransaction(userId: string, tx: Omit<Transaction, 'id'> & { id?: string }): Promise<Transaction> {
     const newTx: Transaction = {
       ...tx,
-      id: crypto.randomUUID(),
+      id: tx.id || crypto.randomUUID(),
       ownerId: userId,
     };
 

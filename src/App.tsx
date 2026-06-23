@@ -48,7 +48,9 @@ import {
   CloudSnow,
   MapPin,
   SlidersHorizontal,
-  Zap
+  Zap,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -74,7 +76,8 @@ import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
-import { db } from './db';
+import { db, flushQueue } from './offlineDb';
+import { useSyncStatus } from './useSyncStatus';
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
 import { LoginPage } from './components/LoginPage';
@@ -162,6 +165,7 @@ export default function App() {
   }, []);
 
   const [user, setUser] = useState<AppUser | null>(null);
+  const { status: syncStatus, pendingCount: syncPendingCount } = useSyncStatus(user?.uid);
   const [authReady, setAuthReady] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
@@ -2473,6 +2477,47 @@ const handleDeleteTransaction = async () => {
                 </button>
               </div>
             )}
+
+            {/* Sync Status */}
+            <button
+              onClick={() => user && flushQueue(user.uid)}
+              disabled={syncStatus === 'offline' || syncStatus === 'syncing'}
+              className="w-full bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] flex items-center justify-between transition-colors duration-200 cursor-pointer disabled:cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center",
+                  syncStatus === 'offline' && "bg-gray-50 dark:bg-[#14181E] text-gray-400",
+                  syncStatus === 'syncing' && "bg-sky-50 dark:bg-sky-950/30 text-sky-500",
+                  syncStatus === 'pending' && "bg-amber-50 dark:bg-amber-950/30 text-amber-500",
+                  syncStatus === 'synced' && "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500",
+                )}>
+                  {syncStatus === 'offline' && <CloudOff size={16} />}
+                  {syncStatus === 'syncing' && <RefreshCw size={16} className="animate-spin" />}
+                  {syncStatus === 'pending' && <RefreshCw size={16} />}
+                  {syncStatus === 'synced' && <Check size={16} />}
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    {syncStatus === 'offline' && 'Offline'}
+                    {syncStatus === 'syncing' && 'Menyinkronkan...'}
+                    {syncStatus === 'pending' && 'Menunggu Sinkronisasi'}
+                    {syncStatus === 'synced' && 'Tersinkron'}
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {syncStatus === 'offline' && 'Transaksi tersimpan di perangkat'}
+                    {syncStatus === 'syncing' && 'Mengirim data ke server'}
+                    {syncStatus === 'pending' && `${syncPendingCount} transaksi belum tersinkron · tap untuk coba lagi`}
+                    {syncStatus === 'synced' && 'Semua data sudah tersimpan di cloud'}
+                  </p>
+                </div>
+              </div>
+              {syncStatus === 'pending' && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-400 text-white text-[10px] font-bold flex items-center justify-center">
+                  {syncPendingCount}
+                </span>
+              )}
+            </button>
 
             {/* Preferences */}
             <div className="bg-white dark:bg-[#13161A] rounded-[32px] border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
