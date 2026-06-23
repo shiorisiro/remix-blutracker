@@ -150,7 +150,10 @@ export async function signInWithGoogle(): Promise<void> {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.href,
+      // window.location.origin doang cuma domain (https://shiorisiro.github.io),
+      // ke-mancing path subfolder GitHub Pages (/remix-blutracker/) hilang.
+      // pathname dari posisi sekarang ngikutin path itu otomatis.
+      redirectTo: window.location.origin + window.location.pathname,
     }
   });
 
