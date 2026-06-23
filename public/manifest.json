@@ -13,26 +13,26 @@
       "name": "Scan Receipt",
       "short_name": "Scan",
       "description": "Scan a new receipt using AI",
-      "url": "/?action=scan",
-      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+      "url": "/remix-blutracker/?action=scan",
+      "icons": [{ "src": "/remix-blutracker/pwa-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Add Transaction",
       "short_name": "Add",
       "description": "Manually add a new transaction",
-      "url": "/?action=add",
-      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+      "url": "/remix-blutracker/?action=add",
+      "icons": [{ "src": "/remix-blutracker/pwa-192x192.png", "sizes": "192x192" }]
     }
   ],
   "icons": [
     {
-      "src": "/pwa-192x192.png",
+      "src": "/remix-blutracker/pwa-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/pwa-512x512.png",
+      "src": "/remix-blutracker/pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

@@ -1,10 +1,13 @@
-const CACHE_NAME = 'blu-v3';
+const CACHE_NAME = 'blu-v4';
 
 // Standard files to cache immediately
 const ASSETS = [
   '/remix-blutracker/',
   '/remix-blutracker/index.html',
-  '/remix-blutracker/manifest.json'
+  '/remix-blutracker/manifest.json',
+  '/remix-blutracker/logo.png',
+  '/remix-blutracker/pwa-192x192.png',
+  '/remix-blutracker/pwa-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -64,7 +67,7 @@ self.addEventListener('fetch', (event) => {
         }
         // Fallback for single page application (SPA)
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('/remix-blutracker/index.html');
         }
         return null;
       });
