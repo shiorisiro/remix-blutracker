@@ -1560,7 +1560,7 @@ const handleDeleteTransaction = async () => {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return <LoginPage onGoogleSignIn={loginWithGoogle} googleError={authError} />;
   }
 
   return (
