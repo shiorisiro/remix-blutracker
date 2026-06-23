@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DinarsPay Remix - Financial Tracker</title>
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/png" href="./logo.png" />
     <meta name="theme-color" content="#0D0F12" />
-    <link rel="apple-touch-icon" href="https://picsum.photos/seed/bluicon/192/192" />
+    <link rel="apple-touch-icon" href="./logo.png" />
   </head>
   <body>
     <div id="root"></div>
@@ -34,7 +35,9 @@
           console.log('Development mode: SW unregistered and caches cleared.');
         } else {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
+            // Path relatif - biar scope-nya ngikut folder index.html ini dideploy
+            // (mis. /remix-blutracker/), bukan selalu root domain.
+            navigator.serviceWorker.register('./sw.js', { scope: './' })
               .then(reg => console.log('SW registered', reg))
               .catch(err => console.log('SW failed', err));
           });
