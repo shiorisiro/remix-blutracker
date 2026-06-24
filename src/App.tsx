@@ -2181,6 +2181,7 @@ const handleDeleteTransaction = async () => {
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               CATEGORY_CONFIG={CATEGORY_CONFIG}
+              categories={CATEGORIES_BY_TYPE.expense}
               categoryPieData={categoryPieData}
               transactions={transactions}
               selectedMonth={selectedMonth}
