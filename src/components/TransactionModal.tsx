@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, Loader2, Check, ArrowDownLeft, ArrowUpRight, Wallet } from 'lucide-react';
+import { X, Camera, Mic, Loader2, Check, ArrowDownLeft, ArrowUpRight, Wallet } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface TransactionModalProps {
@@ -28,9 +28,11 @@ interface TransactionModalProps {
   handleSaveTransaction: (e: React.FormEvent) => void;
   setIsScannerOpen: (open: boolean) => void;
   formatInputNumber: (val: string) => string;
+  categoriesByType: Record<'income' | 'expense' | 'debt', string[]>;
+  isListening: boolean;
+  onVoiceInput: () => void;
 }
 
-const CATEGORIES = ['General', 'Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'Salary', 'Bonus'];
 
 export function TransactionModal({
   setIsModalOpen,
@@ -57,7 +59,20 @@ export function TransactionModal({
   handleSaveTransaction,
   setIsScannerOpen,
   formatInputNumber,
+  categoriesByType,
+  isListening,
+  onVoiceInput,
 }: TransactionModalProps) {
+
+  const categories = categoriesByType[newType] || [];
+
+  // Kalau ganti tipe transaksi dan kategori yang lagi kepilih nggak valid buat tipe baru,
+  // otomatis pindah ke pilihan pertama yang valid.
+  React.useEffect(() => {
+    if (!categories.includes(newCategory)) {
+      setNewCategory(categories[0] || 'Lainnya');
+    }
+  }, [newType]);
 
   const handleClose = () => {
     setIsModalOpen(false);
@@ -67,7 +82,7 @@ export function TransactionModal({
     setNewDate('');
     setNewTime('');
     setNewType('expense');
-    setNewCategory('General');
+    setNewCategory('Lainnya');
     setNewClassification('personal');
     setNewDebtType('borrow');
     setNewIsSettled(false);
@@ -225,7 +240,7 @@ export function TransactionModal({
                 Kategori
               </label>
               <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -292,6 +307,21 @@ export function TransactionModal({
                 </div>
               </div>
             )}
+
+            {/* Voice Input Button */}
+            <button
+              type="button"
+              onClick={onVoiceInput}
+              className={cn(
+                "w-full py-3 border border-dashed rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all",
+                isListening
+                  ? "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-900/50 text-red-500 dark:text-red-400 animate-pulse"
+                  : "bg-[#F8FAFC] dark:bg-[#08090B] border-gray-200 dark:border-[#22272F] text-gray-600 dark:text-gray-300 hover:border-[#CFFF0F]/50"
+              )}
+            >
+              <Mic size={16} className={isListening ? "" : "text-[#CFFF0F]"} />
+              <span>{isListening ? 'Mendengarkan... (tap untuk berhenti)' : 'Catat dengan Suara'}</span>
+            </button>
 
             {/* Scan Receipt Button */}
             <button
