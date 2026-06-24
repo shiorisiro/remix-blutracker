@@ -50,9 +50,19 @@ import {
   SlidersHorizontal,
   Zap,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  Package,
+  Briefcase,
+  Store,
+  Award,
+  Code2,
+  Gift,
+  Coins,
+  CalendarClock,
+  Mic,
+  MicOff
 } from 'lucide-react';
-import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
   BarChart, 
@@ -82,7 +92,7 @@ import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
 import { LoginPage } from './components/LoginPage';
 import { cn } from './lib/utils';
-import { INITIAL_TRANSACTIONS } from './constants';
+import { INITIAL_TRANSACTIONS, CATEGORIES_BY_TYPE, CATEGORY_MIGRATION_MAP } from './constants';
 import { TransactionItem } from './components/TransactionItem';
 import { ScannerModal } from './components/ScannerModal';
 import { StatsDetailModal } from './components/StatsDetailModal';
@@ -381,6 +391,27 @@ export default function App() {
     return unsubscribe;
   }, [user]);
 
+  // Migrasi kategori lama (flat, sebelum dipisah per tipe) -> kategori baru yang sesuai
+  // tipenya. Jalan diam-diam di background, masing-masing transaksi cuma sekali per sesi.
+  const migratedCategoryIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user || transactions.length === 0) return;
+
+    transactions.forEach(t => {
+      if (migratedCategoryIds.current.has(t.id)) return;
+      const validCategories = CATEGORIES_BY_TYPE[t.type] || [];
+      if (validCategories.includes(t.category)) return;
+
+      migratedCategoryIds.current.add(t.id);
+      const newCategory = CATEGORY_MIGRATION_MAP[t.category] || 'Lainnya';
+      if (newCategory !== t.category) {
+        db.updateTransaction(user.uid, t.id, { category: newCategory }).catch(e =>
+          console.error('Gagal migrasi kategori transaksi:', t.id, e)
+        );
+      }
+    });
+  }, [transactions, user]);
+
 
 
   const loginWithGoogle = async () => {
@@ -570,16 +601,28 @@ export default function App() {
   }, []);
 
   const CATEGORY_CONFIG: Record<string, { color: string, icon: any }> = {
-    'Food': { color: '#FF6B6B', icon: Utensils },
-    'Shopping': { color: '#4ECDC4', icon: ShoppingBag },
+    // Pengeluaran
+    'Makanan': { color: '#FF6B6B', icon: Utensils },
+    'Belanja': { color: '#4ECDC4', icon: ShoppingBag },
     'Bensin': { color: '#FFD93D', icon: Fuel },
     'Perbaikan': { color: '#A29BFE', icon: Wrench },
-    'Entertainment': { color: '#6C5CE7', icon: Play },
-    'General': { color: '#95afc0', icon: LayoutGrid },
+    'Hiburan': { color: '#6C5CE7', icon: Play },
+    'Modal Usaha': { color: '#00B894', icon: Package },
+    // Pemasukan
+    'Gaji': { color: '#0984E3', icon: Briefcase },
+    'Penjualan': { color: '#00CEC9', icon: Store },
+    'Bonus': { color: '#FDCB6E', icon: Award },
+    'Proyek': { color: '#6C5CE7', icon: Code2 },
+    'Hadiah': { color: '#FF7675', icon: Gift },
+    // Hutang/Piutang
+    'Pinjaman': { color: '#E17055', icon: Coins },
+    'Cicilan': { color: '#636E72', icon: CalendarClock },
+    // Universal
+    'Lainnya': { color: '#95afc0', icon: LayoutGrid },
   };
 
   const categoryPieData = useMemo(() => {
-    const categories = ['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'];
+    const categories = CATEGORIES_BY_TYPE.expense;
     return categories.map(cat => {
       const amount = transactions
         .filter(t => t.type === 'expense' && t.category === cat && isSameMonth(parseISO(t.date), selectedMonth))
@@ -1502,6 +1545,139 @@ const handleDeleteTransaction = async () => {
     }
   };
   
+  // ============================================================
+  // Voice-to-text untuk tambah transaksi (100% client-side, tanpa
+  // server/API key - cocok buat GitHub Pages yang hosting statis).
+  // Web Speech API buat dengar -> parser berbasis kata kunci buat
+  // ekstrak title/amount/type/category/classification/date.
+  // ============================================================
+
+  const CATEGORY_VOICE_KEYWORDS: Record<string, string[]> = {
+    'Gaji': ['gaji', 'upah'],
+    'Penjualan': ['jual', 'penjualan', 'dagang', 'omset', 'omzet'],
+    'Bonus': ['bonus'],
+    'Proyek': ['proyek', 'project', 'jasa', 'klien'],
+    'Hadiah': ['hadiah', 'kado'],
+    'Makanan': ['makan', 'jajan', 'makanan', 'kuliner'],
+    'Belanja': ['belanja', 'shopping'],
+    'Bensin': ['bensin', 'pertalite', 'pertamax', 'solar'],
+    'Perbaikan': ['servis', 'service', 'perbaikan', 'bengkel'],
+    'Hiburan': ['nonton', 'hiburan', 'liburan'],
+    'Modal Usaha': ['modal', 'stok', 'bahan baku'],
+    'Pinjaman': ['pinjam', 'hutang', 'utang'],
+    'Cicilan': ['cicilan', 'angsuran'],
+  };
+
+  const parseVoiceTransaction = (rawText: string) => {
+    const text = rawText.toLowerCase().trim();
+
+    // 1) Jumlah - tangani "X ribu", "X juta", atau angka mentah dari speech engine
+    let amount = 0;
+    const jutaMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt)\b/);
+    const ribuMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(ribu|rb)\b/);
+    const plainNumberMatch = text.match(/(\d[\d.,]*)/);
+
+    if (jutaMatch) {
+      amount = parseFloat(jutaMatch[1].replace(',', '.')) * 1_000_000;
+    } else if (ribuMatch) {
+      amount = parseFloat(ribuMatch[1].replace(',', '.')) * 1_000;
+    } else if (plainNumberMatch) {
+      const cleaned = plainNumberMatch[1].replace(/[.,]/g, '');
+      amount = parseInt(cleaned, 10) || 0;
+    }
+
+    // 2) Tipe transaksi
+    const incomeKeywords = ['terima', 'dapat', 'jual', 'penjualan', 'gaji', 'bonus', 'untung', 'pendapatan', 'omset', 'omzet', 'dikasih'];
+    const expenseKeywords = ['beli', 'bayar', 'belanja', 'bensin', 'servis', 'service', 'perbaikan', 'keluar'];
+
+    let type: 'income' | 'expense' = 'expense';
+    if (incomeKeywords.some(k => text.includes(k))) type = 'income';
+    else if (expenseKeywords.some(k => text.includes(k))) type = 'expense';
+
+    // 3) Klasifikasi pribadi/bisnis
+    const businessKeywords = ['bisnis', 'usaha', 'dagang', 'jual', 'penjualan', 'jualan', 'omset', 'omzet', 'modal'];
+    const personalKeywords = ['pribadi', 'gaji', 'sendiri'];
+
+    let classification: 'personal' | 'business' = 'personal';
+    if (businessKeywords.some(k => text.includes(k))) classification = 'business';
+    else if (personalKeywords.some(k => text.includes(k))) classification = 'personal';
+
+    // 4) Kategori - cocokkan ke daftar yang valid buat tipe ini lewat kata kunci
+    let category = 'Lainnya';
+    const validCategories = CATEGORIES_BY_TYPE[type];
+    for (const [cat, keywords] of Object.entries(CATEGORY_VOICE_KEYWORDS)) {
+      if (!validCategories.includes(cat)) continue;
+      if (keywords.some(k => text.includes(k))) {
+        category = cat;
+        break;
+      }
+    }
+
+    // 5) Tanggal
+    let date = format(new Date(), 'yyyy-MM-dd');
+    if (text.includes('kemarin')) date = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    else if (text.includes('besok')) date = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+
+    // 6) Judul - bersihkan angka, satuan, kata tanggal, dan kata kerja generik
+    let title = rawText
+      .replace(/\d[\d.,]*\s*(ribu|rb|juta|jt)?/gi, '')
+      .replace(/\b(hari ini|kemarin|besok|sekarang)\b/gi, '')
+      .replace(/\b(terima|dapat|dikasih|masuk)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (!title) title = category;
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+
+    return { title, amount, type, category, classification, date };
+  };
+
+  const [isListening, setIsListening] = useState(false);
+
+  const handleVoiceInput = () => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert('Browser ini belum mendukung input suara. Coba pakai Chrome terbaru.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'id-ID';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onerror = (e: any) => {
+      console.error('Voice input gagal:', e);
+      setIsListening(false);
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        alert('Gagal menangkap suara. Coba lagi di tempat yang lebih tenang.');
+      }
+    };
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0]?.[0]?.transcript || '';
+      if (!transcript) return;
+
+      const parsed = parseVoiceTransaction(transcript);
+      setNewTitle(parsed.title);
+      setNewAmount(formatInputNumber(parsed.amount > 0 ? String(parsed.amount) : ''));
+      setNewType(parsed.type);
+      setNewCategory(parsed.category);
+      setNewClassification(parsed.classification);
+      setNewDate(parsed.date);
+      setNewTime(format(new Date(), 'HH:mm'));
+      setIsModalOpen(true);
+    };
+
+    recognition.start();
+  };
+
   const renderInsideLabels = (props: any) => {
     const { cx, cy, midAngle, innerRadius, outerRadius, name, value } = props;
     const RADIAN = Math.PI / 180;
@@ -1900,7 +2076,11 @@ const handleDeleteTransaction = async () => {
                       <TrendIcon size={14} className={statusColor} />
                     </div>
                     <p className={cn("text-lg font-extrabold", statusColor)}>
-                      {data.percent === null ? 'Baru' : `${data.percent >= 0 ? '+' : ''}${Math.round(data.percent)}%`}
+                      {data.percent === null
+                        ? 'Baru'
+                        : Math.abs(data.percent) > 100
+                          ? `${data.percent >= 0 ? '+' : '-'}100%+`
+                          : `${data.percent >= 0 ? '+' : ''}${Math.round(data.percent)}%`}
                     </p>
                     <div className="h-10 -mx-1 mt-1">
                       <ResponsiveContainer width="100%" height="100%">
@@ -2210,7 +2390,7 @@ const handleDeleteTransaction = async () => {
                           <div className="space-y-2">
                             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Kategori</p>
                             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                              {['All', 'Food', 'Salary', 'Entertainment', 'Shopping', 'Bensin', 'Perbaikan', 'Bonus', 'General'].map((cat) => (
+                              {['All', ...Array.from(new Set([...CATEGORIES_BY_TYPE.income, ...CATEGORIES_BY_TYPE.expense, ...CATEGORIES_BY_TYPE.debt]))].map((cat) => (
                                 <button
                                   key={cat}
                                   onClick={() => setFilterCategory(cat)}
@@ -2643,6 +2823,28 @@ const handleDeleteTransaction = async () => {
               >
                 <button 
                   onClick={() => {
+                    setIsAddMenuOpen(false);
+                    handleVoiceInput();
+                  }}
+                  className={cn(
+                    "w-12 h-12 border rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer",
+                    isListening
+                      ? "bg-red-500 border-red-400 text-white animate-pulse"
+                      : "bg-gray-900 border-white/10 text-white"
+                  )}
+                >
+                  <Mic size={20} className={isListening ? "" : "text-[#CFFF0F]"} />
+                </button>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.3 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.3 }}
+                transition={{ type: "spring", stiffness: 600, damping: 25 }}
+              >
+                <button 
+                  onClick={() => {
                     setIsScannerOpen(true);
                     setIsAddMenuOpen(false);
                   }}
@@ -2892,6 +3094,9 @@ const handleDeleteTransaction = async () => {
           handleSaveTransaction={handleAddTransaction}
           setIsScannerOpen={setIsScannerOpen}
           formatInputNumber={formatInputNumber}
+          categoriesByType={CATEGORIES_BY_TYPE}
+          isListening={isListening}
+          onVoiceInput={handleVoiceInput}
         />
       )}
       {/* Import Status Modal */}
