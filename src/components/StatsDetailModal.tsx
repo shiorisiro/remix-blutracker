@@ -15,7 +15,7 @@ export function StatsDetailModal({
   selectedCategory,
   setSelectedCategory,
   CATEGORY_CONFIG,
-  categories,
+  categories = [],
   categoryPieData,
   transactions,
   selectedMonth,
