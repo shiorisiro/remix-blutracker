@@ -1,5 +1,22 @@
 import { format, subDays } from 'date-fns';
-import { Transaction } from '../types';
+import { Transaction, TransactionType } from '../types';
+
+export const CATEGORIES_BY_TYPE: Record<TransactionType, string[]> = {
+  income: ['Gaji', 'Penjualan', 'Bonus', 'Proyek', 'Hadiah', 'Lainnya'],
+  expense: ['Makanan', 'Belanja', 'Bensin', 'Perbaikan', 'Hiburan', 'Modal Usaha', 'Lainnya'],
+  debt: ['Pinjaman', 'Cicilan', 'Lainnya'],
+};
+
+// Nama kategori lama (flat, sebelum dipisah per tipe) -> nama baru yang paling mendekati.
+// Dipakai sekali oleh efek migrasi di App.tsx buat transaksi lama yang masih pakai nama lama.
+export const CATEGORY_MIGRATION_MAP: Record<string, string> = {
+  'General': 'Lainnya',
+  'Food': 'Makanan',
+  'Shopping': 'Belanja',
+  'Entertainment': 'Hiburan',
+  'Salary': 'Gaji',
+  // 'Bensin', 'Perbaikan', 'Bonus' namanya sudah sama dari awal - tidak perlu dipetakan.
+};
 
 export const INITIAL_TRANSACTIONS = (() => {
   const today = new Date();
