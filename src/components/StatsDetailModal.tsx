@@ -15,6 +15,7 @@ export function StatsDetailModal({
   selectedCategory,
   setSelectedCategory,
   CATEGORY_CONFIG,
+  categories,
   categoryPieData,
   transactions,
   selectedMonth,
@@ -52,7 +53,7 @@ export function StatsDetailModal({
       const dayData: any = { name: format(day, 'd') };
 
       // Hitung total per kategori untuk hari ini
-      ['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].forEach(cat => {
+      categories.forEach(cat => {
         const amount = transactions
           .filter(t => t.type === 'expense' && t.category === cat && t.date === dateStr)
           .reduce((acc, t) => acc + t.amount, 0);
@@ -61,7 +62,7 @@ export function StatsDetailModal({
 
       return dayData;
     });
-  }, [transactions, selectedMonth, isCurrentMonth]);
+  }, [transactions, selectedMonth, isCurrentMonth, categories]);
 
   // 2. Data Perbandingan Mingguan -> sekarang berdasarkan BULAN yang dipilih
   const monthlyWeeklyComparisonData = useMemo(() => {
@@ -167,12 +168,13 @@ export function StatsDetailModal({
 
   // Warna kategori untuk line chart
   const categoryColors: Record<string, string> = {
-    'Food': '#FF6B6B',
-    'Shopping': '#4ECDC4', 
+    'Makanan': '#FF6B6B',
+    'Belanja': '#4ECDC4',
     'Bensin': '#FFD93D',
     'Perbaikan': '#A29BFE',
-    'Entertainment': '#6C5CE7',
-    'General': '#95afc0',
+    'Hiburan': '#6C5CE7',
+    'Modal Usaha': '#00B894',
+    'Lainnya': '#95afc0',
   };
 
   const WrapperTag: any = embedded ? 'div' : motion.div;
@@ -303,7 +305,7 @@ export function StatsDetailModal({
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Pengeluaran per Kategori (Hari Ini)</h4>
                     <div className="space-y-3">
-                      {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => {
+                      {categories.map(cat => {
                         const today = format(new Date(), 'yyyy-MM-dd');
                         const amount = transactions
                           .filter(t => t.type === 'expense' && t.category === cat && t.date === today)
@@ -335,7 +337,7 @@ export function StatsDetailModal({
                         />
                         <YAxis hide />
                         <Tooltip content={<CustomTooltip />} />
-                        {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => (
+                        {categories.map(cat => (
                           <Line
                             key={cat}
                             type="monotone"
@@ -352,7 +354,7 @@ export function StatsDetailModal({
 
                   {/* Legend Kategori */}
                   <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-                    {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => {
+                    {categories.map(cat => {
                       const total = transactions
                         .filter(t => t.type === 'expense' && t.category === cat && isSameMonth(parseISO(t.date), selectedMonth))
                         .reduce((acc, t) => acc + t.amount, 0);
@@ -370,7 +372,7 @@ export function StatsDetailModal({
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Total per Kategori - {format(selectedMonth, 'MMMM yyyy', { locale: id })}</h4>
                     <div className="space-y-2">
-                      {['Food', 'Shopping', 'Bensin', 'Perbaikan', 'Entertainment', 'General'].map(cat => {
+                      {categories.map(cat => {
                         const total = transactions
                           .filter(t => t.type === 'expense' && t.category === cat && isSameMonth(parseISO(t.date), selectedMonth))
                           .reduce((acc, t) => acc + t.amount, 0);
