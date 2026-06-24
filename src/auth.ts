@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { localDb } from './db';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export interface AppUser {
   uid: string;
@@ -147,6 +149,26 @@ export async function signInWithGoogle(): Promise<void> {
     throw new Error('Supabase tidak dikonfigurasi. Login Google tidak tersedia.');
   }
 
+  if (Capacitor.isNativePlatform()) {
+    // APK: Google blokir OAuth lewat WebView biasa (error "disallowed_useragent"),
+    // jadi di native HARUS pakai Google Sign-In asli (bukan redirect browser).
+    // Plugin ini ngembalikan idToken, lalu ditukar ke session Supabase langsung -
+    // tanpa pernah keluar dari app sama sekali.
+    const googleUser = await GoogleAuth.signIn();
+    const idToken = googleUser?.authentication?.idToken;
+    if (!idToken) {
+      throw new Error('Tidak mendapatkan token dari Google Sign-In.');
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: idToken,
+    });
+    if (error) throw error;
+    return;
+  }
+
+  // Web/PWA: tetap pakai redirect OAuth seperti sebelumnya.
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
