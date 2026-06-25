@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera, RefreshCcw, ScanLine, Loader2, RotateCcw, Check } from 'lucide-react';
+import { StatusBar } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 
 export function ScannerModal({ onClose, onScan, isScanning }: { onClose: () => void, onScan: (img: string) => void, isScanning: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -27,6 +29,16 @@ export function ScannerModal({ onClose, onScan, isScanning }: { onClose: () => v
     startCamera();
     return () => {
       streamRef.current?.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
+  // Scanner ini full-screen - biar kamera kelihatan sampai mentok ke atas (nggak ada
+  // gap hitam dari area status bar), overlay WebView sementara selama modal ini terbuka.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+    return () => {
+      StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
     };
   }, []);
 
@@ -64,7 +76,12 @@ export function ScannerModal({ onClose, onScan, isScanning }: { onClose: () => v
                 <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-blu-primary rounded-br-xl"></div>
                 
                 {/* Scanning Animation Line */}
-                <div className="absolute inset-x-0 top-0 h-0.5 bg-blu-primary/80 shadow-[0_0_15px_rgba(0,174,239,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
+                <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                  <div className="absolute inset-x-0 top-0 animate-[scan_2.2s_ease-in-out_infinite]">
+                    <div className="h-16 bg-gradient-to-t from-white/50 to-transparent"></div>
+                    <div className="h-[3px] bg-white shadow-[0_0_16px_3px_rgba(255,255,255,0.95)]"></div>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="absolute top-10 left-0 right-0 text-center px-6">
