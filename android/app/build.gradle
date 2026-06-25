@@ -11,6 +11,12 @@ def appVersionCode = envVersionCode ? envVersionCode.toInteger() : 1
 def envVersionName = System.getenv("VERSION_NAME")
 def appVersionName = envVersionName ?: "1.0"
 
+// Web Client ID dipakai oleh plugin GoogleAuth native - native code-nya baca dari
+// string resource R.string.server_client_id, bukan langsung dari capacitor.config.ts.
+// Sumbernya tetap env var yang sama dipakai buat web build (VITE_GOOGLE_CLIENT_ID),
+// jadi nggak ada Client ID yang ke-hardcode di repo.
+def googleServerClientId = System.getenv("VITE_GOOGLE_CLIENT_ID") ?: ""
+
 android {
     namespace = "com.blutracker.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -23,6 +29,7 @@ android {
         // VERSION_CODE/VERSION_NAME env vars set by the GitHub Actions workflow.
         versionCode appVersionCode
         versionName appVersionName
+        resValue "string", "server_client_id", googleServerClientId
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
