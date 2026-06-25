@@ -152,8 +152,10 @@ export async function signInWithGoogle(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     // APK: Google blokir OAuth lewat WebView biasa (error "disallowed_useragent"),
     // jadi di native HARUS pakai Google Sign-In asli (bukan redirect browser).
-    // Plugin ini ngembalikan idToken, lalu ditukar ke session Supabase langsung -
-    // tanpa pernah keluar dari app sama sekali.
+    // initialize() WAJIB dipanggil dulu - itu yang bikin objek GoogleSignInClient
+    // di native ke-construct. Tanpa ini, signIn() crash dengan NullPointerException
+    // karena client-nya masih null.
+    await GoogleAuth.initialize();
     const googleUser = await GoogleAuth.signIn();
     const idToken = googleUser?.authentication?.idToken;
     if (!idToken) {
