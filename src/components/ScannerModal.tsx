@@ -56,7 +56,7 @@ export function ScannerModal({ onClose, onScan, isScanning }: { onClose: () => v
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-[70] flex flex-col">
+    <div className="fixed inset-0 bg-black z-[200] flex flex-col">
       <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
         {!capturedImage ? (
           <>
