@@ -272,7 +272,8 @@ export default function App() {
       setIsAvatarPickerOpen(false);
     } catch (err: any) {
       console.error('Gagal upload foto profil:', err);
-      alert('Gagal upload foto. Pastikan koneksi internet stabil, lalu coba lagi.');
+      const reason = err?.message || err?.error_description || 'Penyebab tidak diketahui';
+      alert(`Gagal upload foto: ${reason}`);
     } finally {
       setIsUploadingPhoto(false);
       e.target.value = '';
