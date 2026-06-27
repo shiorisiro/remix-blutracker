@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   Download,
   Upload,
+  ImagePlus,
   Sparkles,
   Bot,
   Sun,
@@ -87,6 +88,8 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
 import { db, flushQueue } from './offlineDb';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { useSyncStatus } from './useSyncStatus';
 import { supabase, isSupabaseConfigured } from './supabase-client';
 import { useTheme } from './ThemeContext';
@@ -196,20 +199,85 @@ export default function App() {
     }
   };
 
-  // Profile avatar (placeholder icon set for now - see AVATAR_OPTIONS above).
-  // Persisted via the same updateUserProfile()/photoURL field already used for
-  // real photo URLs, so swapping in real images later needs no new storage.
+  // Profile avatar: 6 icon placeholder + foto asli (upload ke Supabase Storage,
+  // disimpan di field photoURL yang sama). isPhotoUrl() yang nentuin mana yang
+  // mau dirender - icon kalau cocok salah satu AVATAR_OPTIONS id, foto kalau URL.
   const [selectedAvatar, setSelectedAvatar] = useState<string>(DEFAULT_AVATAR_ID);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  const isPhotoUrl = (val?: string | null) => !!val && (val.startsWith('http://') || val.startsWith('https://'));
 
   useEffect(() => {
-    if (user?.photoURL && AVATAR_OPTIONS.some(a => a.id === user.photoURL)) {
+    if (user?.photoURL && (AVATAR_OPTIONS.some(a => a.id === user.photoURL) || isPhotoUrl(user.photoURL))) {
       setSelectedAvatar(user.photoURL);
     } else if (!user) {
       setSelectedAvatar(DEFAULT_AVATAR_ID);
     }
   }, [user?.photoURL, user]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('File harus berupa gambar.');
+      e.target.value = '';
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      // Resize ke maksimal 512x512 dulu di browser biar upload-nya ringan
+      const resizedBlob: Blob = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxSize = 512;
+          let { width, height } = img;
+          if (width > height) {
+            if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
+          } else {
+            if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => blob ? resolve(blob) : reject(new Error('Gagal memproses gambar')),
+            'image/jpeg',
+            0.85
+          );
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = () => reject(new Error('Gagal membaca gambar'));
+        img.src = URL.createObjectURL(file);
+      });
+
+      const filePath = `${user.uid}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, resizedBlob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const photoUrl = `${data.publicUrl}?t=${Date.now()}`; // cache-bust biar foto baru langsung kelihatan
+
+      await updateUserProfile({ photoURL: photoUrl });
+      setSelectedAvatar(photoUrl);
+      setIsAvatarPickerOpen(false);
+    } catch (err: any) {
+      console.error('Gagal upload foto profil:', err);
+      alert('Gagal upload foto. Pastikan koneksi internet stabil, lalu coba lagi.');
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
 
   // Weather widget (Dashboard). Sumber data:
   // - Open-Meteo (cuaca, gratis, tanpa API key)
@@ -1633,7 +1701,52 @@ const handleDeleteTransaction = async () => {
 
   const [isListening, setIsListening] = useState(false);
 
-  const handleVoiceInput = () => {
+  const applyVoiceParseResult = (transcript: string) => {
+    if (!transcript) return;
+    const parsed = parseVoiceTransaction(transcript);
+    setNewTitle(parsed.title);
+    setNewAmount(formatInputNumber(parsed.amount > 0 ? String(parsed.amount) : ''));
+    setNewType(parsed.type);
+    setNewCategory(parsed.category);
+    setNewClassification(parsed.classification);
+    setNewDate(parsed.date);
+    setNewTime(format(new Date(), 'HH:mm'));
+    setIsModalOpen(true);
+  };
+
+  const handleVoiceInputNative = async () => {
+    if (isListening) return;
+    setIsListening(true);
+    try {
+      const attemptStart = () => SpeechRecognition.start({
+        language: 'id-ID',
+        maxResults: 1,
+        prompt: 'Ucapkan transaksi Anda...',
+        partialResults: false,
+        popup: true,
+      } as any);
+
+      let result: any;
+      try {
+        result = await attemptStart();
+      } catch (firstErr) {
+        // Kemungkinan izin mikrofon belum diberikan - minta sekali, lalu coba ulang.
+        console.warn('Voice input gagal percobaan pertama, minta izin dulu:', firstErr);
+        await SpeechRecognition.requestPermissions();
+        result = await attemptStart();
+      }
+
+      const transcript = result?.matches?.[0] || '';
+      applyVoiceParseResult(transcript);
+    } catch (err) {
+      console.error('Voice input native gagal:', err);
+      alert('Tidak bisa mengakses mikrofon. Pastikan izin mikrofon untuk Blu Tracker aktif di Setelan HP > Aplikasi > Blu Tracker > Izin.');
+    } finally {
+      setIsListening(false);
+    }
+  };
+
+  const handleVoiceInputWeb = () => {
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       alert('Browser ini belum mendukung input suara. Coba pakai Chrome terbaru.');
@@ -1662,20 +1775,18 @@ const handleDeleteTransaction = async () => {
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0]?.[0]?.transcript || '';
-      if (!transcript) return;
-
-      const parsed = parseVoiceTransaction(transcript);
-      setNewTitle(parsed.title);
-      setNewAmount(formatInputNumber(parsed.amount > 0 ? String(parsed.amount) : ''));
-      setNewType(parsed.type);
-      setNewCategory(parsed.category);
-      setNewClassification(parsed.classification);
-      setNewDate(parsed.date);
-      setNewTime(format(new Date(), 'HH:mm'));
-      setIsModalOpen(true);
+      applyVoiceParseResult(transcript);
     };
 
     recognition.start();
+  };
+
+  const handleVoiceInput = () => {
+    if (Capacitor.isNativePlatform()) {
+      handleVoiceInputNative();
+    } else {
+      handleVoiceInputWeb();
+    }
   };
 
   const renderInsideLabels = (props: any) => {
@@ -2535,20 +2646,107 @@ const handleDeleteTransaction = async () => {
         {activeTab === 'profile' && (
           <section className="space-y-6">
             {user ? (
-              <div className="bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F] flex flex-col items-center text-center space-y-3 transition-colors duration-200">
-                {(() => {
-                  const activeAvatar = AVATAR_OPTIONS.find(a => a.id === selectedAvatar) || AVATAR_OPTIONS[0];
-                  const ActiveAvatarIcon = activeAvatar.icon;
-                  return (
-                    <button
-                      onClick={() => setIsAvatarPickerOpen(v => !v)}
-                      className="w-20 h-20 rounded-full flex items-center justify-center bg-gray-100 dark:bg-[#14181E] border border-gray-200 dark:border-[#22272F] text-gray-600 dark:text-[#CFFF0F] cursor-pointer hover:opacity-85 transition-all"
-                      title="Pilih avatar"
+              <div className="relative bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F] flex flex-col items-center text-center space-y-3 transition-colors duration-200">
+                {/* Top-right: sync status + theme toggle, sebelahan */}
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <button
+                    onClick={() => user && flushQueue(user.uid)}
+                    disabled={syncStatus === 'offline' || syncStatus === 'syncing'}
+                    title={
+                      syncStatus === 'offline' ? 'Offline - tersimpan di perangkat' :
+                      syncStatus === 'syncing' ? 'Menyinkronkan...' :
+                      syncStatus === 'pending' ? `${syncPendingCount} transaksi belum tersinkron - tap untuk coba lagi` :
+                      'Tersinkron'
+                    }
+                    className={cn(
+                      "relative w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer disabled:cursor-default",
+                      syncStatus === 'offline' && "bg-gray-50 dark:bg-[#14181E] text-gray-400",
+                      syncStatus === 'syncing' && "bg-sky-50 dark:bg-sky-950/30 text-sky-500",
+                      syncStatus === 'pending' && "bg-amber-50 dark:bg-amber-950/30 text-amber-500",
+                      syncStatus === 'synced' && "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500",
+                    )}
+                  >
+                    {syncStatus === 'offline' && <CloudOff size={15} />}
+                    {syncStatus === 'syncing' && <RefreshCw size={15} className="animate-spin" />}
+                    {syncStatus === 'pending' && <RefreshCw size={15} />}
+                    {syncStatus === 'synced' && <Check size={15} />}
+                    {syncStatus === 'pending' && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center">
+                        {syncPendingCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={toggleTheme}
+                    className={cn(
+                      "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
+                      theme === 'light'
+                        ? "bg-sky-200"
+                        : "bg-slate-950 border border-slate-800"
+                    )}
+                    title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+                  >
+                    <div className="absolute inset-0 pointer-events-none">
+                      {theme === 'light' ? (
+                        <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
+                          <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
+                        </div>
+                      ) : (
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
+                          <span className="text-white text-[6px] leading-none">✦</span>
+                          <span className="text-yellow-100 text-[4px] leading-none">✦</span>
+                          <span className="text-white text-[5px] leading-none">✦</span>
+                        </div>
+                      )}
+                    </div>
+                    <motion.div
+                      animate={{ x: theme === 'light' ? 2 : 26 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className={cn(
+                        "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10",
+                        theme === 'light' ? "bg-amber-400" : "bg-slate-700"
+                      )}
                     >
-                      <ActiveAvatarIcon size={32} />
-                    </button>
-                  );
-                })()}
+                      <motion.div
+                        animate={{ rotate: theme === 'light' ? 0 : 360 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                      >
+                        {theme === 'light'
+                          ? <Sun size={13} className="fill-white text-white" />
+                          : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
+                        }
+                      </motion.div>
+                    </motion.div>
+                  </button>
+                </div>
+
+                <div className="pt-6">
+                  {(() => {
+                    const activeAvatar = AVATAR_OPTIONS.find(a => a.id === selectedAvatar) || AVATAR_OPTIONS[0];
+                    const ActiveAvatarIcon = activeAvatar.icon;
+                    const hasPhoto = isPhotoUrl(selectedAvatar);
+                    return (
+                      <button
+                        onClick={() => setIsAvatarPickerOpen(v => !v)}
+                        disabled={isUploadingPhoto}
+                        className="relative w-32 h-32 rounded-full flex items-center justify-center bg-gray-100 dark:bg-[#14181E] ring-4 ring-gray-50 dark:ring-[#0D0F12] shadow-lg overflow-hidden text-gray-600 dark:text-[#CFFF0F] cursor-pointer hover:opacity-90 transition-all"
+                        title="Pilih avatar"
+                      >
+                        {isUploadingPhoto ? (
+                          <Loader2 size={32} className="animate-spin" />
+                        ) : hasPhoto ? (
+                          <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <ActiveAvatarIcon size={48} />
+                        )}
+                        <div className="absolute bottom-0 inset-x-0 py-1.5 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                          <Edit2 size={11} className="text-white" />
+                        </div>
+                      </button>
+                    );
+                  })()}
+                </div>
 
                 {isEditingName ? (
                   <div className="flex items-center gap-1.5">
@@ -2603,6 +2801,13 @@ const handleDeleteTransaction = async () => {
                 <p className="text-xs text-gray-400">{user.email}</p>
 
                 {/* Avatar Picker - opens on click of the avatar above */}
+                <input
+                  ref={avatarFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
                 <AnimatePresence>
                   {isAvatarPickerOpen && (
                     <motion.div
@@ -2611,7 +2816,20 @@ const handleDeleteTransaction = async () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="w-full overflow-hidden"
                     >
-                      <div className="w-full pt-4 border-t border-gray-100 dark:border-[#22272F]">
+                      <div className="w-full pt-4 border-t border-gray-100 dark:border-[#22272F] space-y-3">
+                        <button
+                          onClick={() => avatarFileInputRef.current?.click()}
+                          disabled={isUploadingPhoto}
+                          className="w-full py-3 bg-[#F8FAFC] dark:bg-[#08090B] border border-dashed border-gray-200 dark:border-[#22272F] rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:border-[#CFFF0F]/50 transition-all disabled:opacity-60"
+                        >
+                          {isUploadingPhoto ? (
+                            <Loader2 size={16} className="animate-spin text-[#CFFF0F]" />
+                          ) : (
+                            <ImagePlus size={16} className="text-[#CFFF0F]" />
+                          )}
+                          <span>{isUploadingPhoto ? 'Mengunggah...' : 'Upload Foto Sendiri'}</span>
+                        </button>
+
                         <div className="grid grid-cols-6 gap-2">
                           {AVATAR_OPTIONS.map((avatar) => {
                             const AvatarIcon = avatar.icon;
@@ -2623,7 +2841,7 @@ const handleDeleteTransaction = async () => {
                                   await handleSelectAvatar(avatar.id);
                                   setIsAvatarPickerOpen(false);
                                 }}
-                                disabled={isSavingAvatar}
+                                disabled={isSavingAvatar || isUploadingPhoto}
                                 className={cn(
                                   "aspect-square rounded-2xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-50",
                                   isActive
@@ -2637,7 +2855,6 @@ const handleDeleteTransaction = async () => {
                             );
                           })}
                         </div>
-                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-2 text-center">Avatar custom (foto sendiri) akan tersedia di update berikutnya</p>
                       </div>
                     </motion.div>
                   )}
@@ -2658,98 +2875,6 @@ const handleDeleteTransaction = async () => {
                 </button>
               </div>
             )}
-
-            {/* Sync Status */}
-            <button
-              onClick={() => user && flushQueue(user.uid)}
-              disabled={syncStatus === 'offline' || syncStatus === 'syncing'}
-              className="w-full bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] flex items-center justify-between transition-colors duration-200 cursor-pointer disabled:cursor-default"
-            >
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-9 h-9 rounded-xl flex items-center justify-center",
-                  syncStatus === 'offline' && "bg-gray-50 dark:bg-[#14181E] text-gray-400",
-                  syncStatus === 'syncing' && "bg-sky-50 dark:bg-sky-950/30 text-sky-500",
-                  syncStatus === 'pending' && "bg-amber-50 dark:bg-amber-950/30 text-amber-500",
-                  syncStatus === 'synced' && "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500",
-                )}>
-                  {syncStatus === 'offline' && <CloudOff size={16} />}
-                  {syncStatus === 'syncing' && <RefreshCw size={16} className="animate-spin" />}
-                  {syncStatus === 'pending' && <RefreshCw size={16} />}
-                  {syncStatus === 'synced' && <Check size={16} />}
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    {syncStatus === 'offline' && 'Offline'}
-                    {syncStatus === 'syncing' && 'Menyinkronkan...'}
-                    {syncStatus === 'pending' && 'Menunggu Sinkronisasi'}
-                    {syncStatus === 'synced' && 'Tersinkron'}
-                  </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                    {syncStatus === 'offline' && 'Transaksi tersimpan di perangkat'}
-                    {syncStatus === 'syncing' && 'Mengirim data ke server'}
-                    {syncStatus === 'pending' && `${syncPendingCount} transaksi belum tersinkron · tap untuk coba lagi`}
-                    {syncStatus === 'synced' && 'Semua data sudah tersimpan di cloud'}
-                  </p>
-                </div>
-              </div>
-              {syncStatus === 'pending' && (
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-400 text-white text-[10px] font-bold flex items-center justify-center">
-                  {syncPendingCount}
-                </span>
-              )}
-            </button>
-
-            {/* Preferences */}
-            <div className="bg-white dark:bg-[#13161A] rounded-[32px] border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
-              <div className="flex items-center justify-center p-5">
-                <button
-                  onClick={toggleTheme}
-                  className={cn(
-                    "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
-                    theme === 'light'
-                      ? "bg-sky-200"
-                      : "bg-slate-950 border border-slate-800"
-                  )}
-                  title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
-                >
-                  {/* Background decorations */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {theme === 'light' ? (
-                      <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
-                        <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
-                      </div>
-                    ) : (
-                      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
-                        <span className="text-white text-[6px] leading-none">✦</span>
-                        <span className="text-yellow-100 text-[4px] leading-none">✦</span>
-                        <span className="text-white text-[5px] leading-none">✦</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sliding knob */}
-                  <motion.div
-                    animate={{ x: theme === 'light' ? 2 : 26 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className={cn(
-                      "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10",
-                      theme === 'light' ? "bg-amber-400" : "bg-slate-700"
-                    )}
-                  >
-                    <motion.div
-                      animate={{ rotate: theme === 'light' ? 0 : 360 }}
-                      transition={{ duration: 0.5, ease: "easeInOut" }}
-                    >
-                      {theme === 'light'
-                        ? <Sun size={13} className="fill-white text-white" />
-                        : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
-                      }
-                    </motion.div>
-                  </motion.div>
-                </button>
-              </div>
-            </div>
 
             {/* Pengelolaan & Reset Data - moved here from Riwayat */}
             <div className="bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] space-y-3 transition-colors duration-200">
