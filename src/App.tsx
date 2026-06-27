@@ -186,7 +186,7 @@ export default function App() {
 
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('blutracker_gemini_key') || '');
   const [tempApiKey, setTempApiKey] = useState(geminiApiKey);
-  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+  const [isAiSettingsModalOpen, setIsAiSettingsModalOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('blutracker_gemini_key', geminiApiKey);
@@ -2642,7 +2642,19 @@ const handleDeleteTransaction = async () => {
             {user ? (
               <div className="relative bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F] flex flex-col items-center text-center space-y-3 transition-colors duration-200">
                 {/* Top-right: sync status + theme toggle, sebelahan */}
-                <div className="absolute top-4 right-4 flex items-center gap-2">
+                <div className="absolute top-4 right-4 flex items-center gap-1">
+                  <button 
+                    onClick={() => {
+                      setTempApiKey(geminiApiKey);
+                      setIsAiSettingsModalOpen(true);
+                    }}
+                    className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-gray-300 cursor-pointer"
+                    title="Pengaturan AI"
+                  >
+                    <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.35)] transform hover:scale-110 active:scale-95 transition-all inline-block flex items-center justify-center">
+                      <Bot size={18} />
+                    </span>
+                  </button>
                   <button
                     onClick={() => user && flushQueue(user.uid)}
                     disabled={syncStatus === 'offline' || syncStatus === 'syncing'}
@@ -2869,59 +2881,6 @@ const handleDeleteTransaction = async () => {
                 </button>
               </div>
             )}
-
-            {/* Pengaturan AI */}
-            <div className="bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] space-y-3 transition-colors duration-200">
-              <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Pengaturan AI</p>
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Gemini API Key</label>
-                  {isEditingApiKey ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={tempApiKey}
-                        onChange={(e) => setTempApiKey(e.target.value)}
-                        placeholder="Masukkan API Key Gemini Anda"
-                        className="flex-1 bg-gray-50 dark:bg-[#14181E] border border-gray-200 dark:border-[#22272F] rounded-xl px-3 py-2.5 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-blu-primary transition-colors"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => {
-                          setGeminiApiKey(tempApiKey.trim());
-                          setIsEditingApiKey(false);
-                        }}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 flex items-center justify-center transition-colors cursor-pointer"
-                        title="Simpan"
-                      >
-                        <Check size={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTempApiKey(geminiApiKey);
-                          setIsEditingApiKey(false);
-                        }}
-                        className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl px-4 py-2.5 flex items-center justify-center transition-colors cursor-pointer"
-                        title="Batal"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div 
-                      onClick={() => setIsEditingApiKey(true)}
-                      className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-[#22272F] rounded-xl px-3 py-2.5 cursor-pointer hover:border-blu-primary/50 transition-colors"
-                    >
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
-                        {geminiApiKey ? '••••••••••••••••••••' + geminiApiKey.slice(-4) : 'Belum diatur'}
-                      </span>
-                      <Edit2 size={14} className="text-gray-400" />
-                    </div>
-                  )}
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Digunakan untuk fitur Scan Struk & Analisis AI. Tersimpan aman di perangkat Anda.</p>
-                </div>
-              </div>
-            </div>
 
             {/* Pengelolaan & Reset Data - moved here from Riwayat */}
             <div className="bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] space-y-3 transition-colors duration-200">
@@ -3383,6 +3342,75 @@ const handleDeleteTransaction = async () => {
           loginWithGoogle={loginWithGoogle}
         />
       )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isAiSettingsModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAiSettingsModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white dark:bg-[#13161A] rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-[#22272F] overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-500">
+                    <Bot size={20} />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">Pengaturan AI</h2>
+                </div>
+                <button
+                  onClick={() => setIsAiSettingsModalOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-400 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Gemini API Key</label>
+                  <input
+                    type="text"
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="Masukkan API Key Gemini Anda"
+                    className="w-full bg-gray-50 dark:bg-[#0D0F12] border border-gray-200 dark:border-[#22272F] rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors font-mono"
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                    Kunci ini digunakan untuk fitur Scan Struk dan Analisis Bisnis. Tersimpan secara lokal dan aman di browser Anda.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setIsAiSettingsModalOpen(false)}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGeminiApiKey(tempApiKey.trim());
+                      setIsAiSettingsModalOpen(false);
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 transition-all active:scale-95"
+                  >
+                    Simpan
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );
