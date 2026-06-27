@@ -184,6 +184,14 @@ export default function App() {
   const [tempName, setTempName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
 
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('blutracker_gemini_key') || '');
+  const [tempApiKey, setTempApiKey] = useState(geminiApiKey);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('blutracker_gemini_key', geminiApiKey);
+  }, [geminiApiKey]);
+
   const handleSaveName = async () => {
     if (!tempName.trim()) return;
     try {
@@ -1254,13 +1262,11 @@ result.sort((a, b) => {
   , [filteredTransactions, selectedMonth]);
 
   const analyzeBusinessWithAI = async () => {
-    const isGitHubPages = window.location.hostname.includes('github.io');
-  if (isGitHubPages) {
-    setAiError('Fitur AI belum tersedia di GitHub Pages.');
-    return;
-  }
+    if (!geminiApiKey) {
+      alert("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan Profil.");
+      return;
+    }
 
-    setIsAiLoading(true)
     const businessTransactions = filteredTransactions.filter(
       t => t.classification === 'business' && isSameMonth(parseISO(t.date), selectedMonth)
     );
@@ -1278,40 +1284,28 @@ ${businessTransactions.map(t => `- ${t.date} ${t.time}: ${t.title} (${t.type ===
 
 Tolong berikan analisis singkat dan saran yang membangun untuk bisnis saya. Fokus pada kesehatan arus kas, kategori pengeluaran terbesar, dan tren pendapatan. Berikan dalam format yang mudah dibaca dengan emoji.`;
 
-      let token = '';
-      if (user && isSupabaseConfigured) {
-        try {
-          token = await auth.getIdToken();
-        } catch (e) {
-          console.error('Auth error:', e);
-        }
-      }
-
-      const res = await fetch("/api/gemini", {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ contents: prompt })
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
       });
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal menghubungi AI");
+      if (!res.ok) throw new Error(data.error?.message || "Gagal menghubungi AI");
 
-      setAiAnalysisResult(data.text);
+      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      setAiAnalysisResult(resultText);
       setIsAiAnalysisModalOpen(true);
     } catch (error: any) {
       console.error(error);
-      if (error?.message?.toLowerCase().includes('api key')) {
-         setAiAnalysisResult("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan.");
-         setIsAiAnalysisModalOpen(true);
-      } else {
-         setAiAnalysisResult("Maaf, terjadi kesalahan saat menganalisis data.");
-         setIsAiAnalysisModalOpen(true);
-      }
+      setAiAnalysisResult("Maaf, terjadi kesalahan saat menganalisis data.");
+      setIsAiAnalysisModalOpen(true);
     } finally {
       setIsAiAnalyzing(false);
-      setIsAiLoading(false);
     }
   };
 
@@ -1499,24 +1493,19 @@ const handleDeleteTransaction = async () => {
     const timer = setTimeout(async () => {
       setIsSuggesting(true);
       try {
-        const token = user?.getIdToken ? await user.getIdToken() : '';
-        const res = await fetch("/api/gemini", {
+        if (!geminiApiKey) return;
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
           method: "POST",
           headers: { 
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "gemini-2.0-flash",
-            contents: [
-              {
-                text: `Analyze: "${newTitle}". 
-                Categories: Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General.
-                Classifications: personal, business.
-                Return JSON: {category, classification}`,
-              }
-            ],
-            config: {
+            contents: [{
+              parts: [{
+                text: `Analyze: "${newTitle}". Categories: Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General. Classifications: personal, business. Return JSON: {category, classification}`
+              }]
+            }],
+            generationConfig: {
               responseMimeType: "application/json",
               responseSchema: {
                 type: "OBJECT",
@@ -1525,14 +1514,15 @@ const handleDeleteTransaction = async () => {
                   classification: { type: "STRING", enum: ["personal", "business"] },
                 },
                 required: ["category", "classification"],
-              },
+              }
             }
           })
         });
         
         if (!res.ok) return;
         const data = await res.json();
-        const result = JSON.parse(data.text || '{}');
+        const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        const result = JSON.parse(resultText);
         if (result.category) setNewCategory(result.category);
         if (result.classification) setNewClassification(result.classification);
       } catch (error) {
@@ -1543,37 +1533,39 @@ const handleDeleteTransaction = async () => {
     }, 500); // Reduced debounce to 500ms
 
     return () => clearTimeout(timer);
-  }, [newTitle, isModalOpen, isScanning]);
+  }, [newTitle, isModalOpen, isScanning, geminiApiKey]);
 
   const handleScanReceipt = async (base64Image: string) => {
     if (!base64Image) return;
 
   setIsScanning(true);
-    try {                         // ← try untuk SEMUA
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      const token = data.session?.access_token || '';
+    try {
+      if (!geminiApiKey) {
+        alert("Fitur AI: Harap pastikan Anda telah memasukkan API Key Gemini yang valid di menu pengaturan Profil.");
+        setIsScanning(false);
+        return;
+      }
 
-      const res = await fetch("/api/gemini", {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          "Content-Type": "application/json"
         },
-                body: JSON.stringify({
-          model: "gemini-2.0-flash",
-          contents: [
-            {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Image.includes(',') ? base64Image.split(',')[1] : base64Image,
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Image.includes(',') ? base64Image.split(',')[1] : base64Image,
+                }
               },
-            },
-            {
-              text: "Extract transaction details from this receipt. Return JSON with fields: title, amount (number), type (income or expense), category (Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General), and classification (personal or business).",
-            },
-          ],
-          config: {
+              {
+                text: "Extract transaction details from this receipt. Return JSON with fields: title, amount (number), type (income or expense), category (Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General), and classification (personal or business)."
+              }
+            ]
+          }],
+          generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
               type: "OBJECT",
@@ -1585,15 +1577,16 @@ const handleDeleteTransaction = async () => {
                 classification: { type: "STRING", enum: ["personal", "business"] },
               },
               required: ["title", "amount", "type", "category", "classification"],
-            },
+            }
           }
         })
-   });
+      });
       
       const responseData = await res.json();
-      if (!res.ok) throw new Error(responseData.error || "Gagal AI Scan");
+      if (!res.ok) throw new Error(responseData.error?.message || "Gagal AI Scan");
 
-      const extracted = JSON.parse(responseData.text || '{}');
+      const resultText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      const extracted = JSON.parse(resultText);
       setNewTitle(extracted.title || '');
       setNewAmount(formatInputNumber(extracted.amount?.toString() || ''));
       setNewType(extracted.type || 'expense');
@@ -2876,6 +2869,59 @@ const handleDeleteTransaction = async () => {
                 </button>
               </div>
             )}
+
+            {/* Pengaturan AI */}
+            <div className="bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] space-y-3 transition-colors duration-200">
+              <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Pengaturan AI</p>
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Gemini API Key</label>
+                  {isEditingApiKey ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tempApiKey}
+                        onChange={(e) => setTempApiKey(e.target.value)}
+                        placeholder="Masukkan API Key Gemini Anda"
+                        className="flex-1 bg-gray-50 dark:bg-[#14181E] border border-gray-200 dark:border-[#22272F] rounded-xl px-3 py-2.5 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-blu-primary transition-colors"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => {
+                          setGeminiApiKey(tempApiKey.trim());
+                          setIsEditingApiKey(false);
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Simpan"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTempApiKey(geminiApiKey);
+                          setIsEditingApiKey(false);
+                        }}
+                        className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl px-4 py-2.5 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Batal"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => setIsEditingApiKey(true)}
+                      className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-[#22272F] rounded-xl px-3 py-2.5 cursor-pointer hover:border-blu-primary/50 transition-colors"
+                    >
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
+                        {geminiApiKey ? '••••••••••••••••••••' + geminiApiKey.slice(-4) : 'Belum diatur'}
+                      </span>
+                      <Edit2 size={14} className="text-gray-400" />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Digunakan untuk fitur Scan Struk & Analisis AI. Tersimpan aman di perangkat Anda.</p>
+                </div>
+              </div>
+            </div>
 
             {/* Pengelolaan & Reset Data - moved here from Riwayat */}
             <div className="bg-white dark:bg-[#13161A] p-5 rounded-[32px] border border-gray-100 dark:border-[#22272F] space-y-3 transition-colors duration-200">
