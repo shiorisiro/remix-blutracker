@@ -72,7 +72,7 @@ async function startServer() {
   // Schema for Gemini request body
   const GeminiSchema = z.object({
     model: z.string().optional(),
-    contents: z.union([z.string(), z.array(z.object({ type: z.string().optional(), text: z.string() }))]).optional(),
+    contents: z.union([z.string(), z.array(z.any())]).optional(),
     config: z.record(z.any()).optional()
   });
 
@@ -94,7 +94,7 @@ async function startServer() {
       const contents = parse.data.contents;
       const totalLen = typeof contents === 'string'
         ? contents.length
-        : Array.isArray(contents) ? contents.reduce((s: number, c: any) => s + (c.text?.length || 0), 0) : 0;
+        : Array.isArray(contents) ? contents.reduce((s: number, c: any) => s + (c.text?.length || 0) + (c.inlineData?.data?.length || 0), 0) : 0;
       const maxLen = Number(process.env.GEMINI_MAX_CONTENT_LENGTH || 50000);
       if (totalLen > maxLen) {
         return res.status(413).json({ error: 'Payload too large' });
