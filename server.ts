@@ -67,7 +67,7 @@ async function startServer() {
   app.use(limiter);
 
   // Smaller default body limit
-  app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
+  app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '5mb' }));
 
   // Schema for Gemini request body
   const GeminiSchema = z.object({
@@ -95,7 +95,7 @@ async function startServer() {
       const totalLen = typeof contents === 'string'
         ? contents.length
         : Array.isArray(contents) ? contents.reduce((s: number, c: any) => s + (c.text?.length || 0) + (c.inlineData?.data?.length || 0), 0) : 0;
-      const maxLen = Number(process.env.GEMINI_MAX_CONTENT_LENGTH || 50000);
+      const maxLen = Number(process.env.GEMINI_MAX_CONTENT_LENGTH || 5000000);
       if (totalLen > maxLen) {
         return res.status(413).json({ error: 'Payload too large' });
       }
