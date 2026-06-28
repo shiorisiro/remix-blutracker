@@ -64,7 +64,7 @@ import {
   MicOff
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, addDays, startOfDay, endOfDay } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { id, enUS } from 'date-fns/locale';
 import { 
   BarChart, 
   Bar, 
@@ -2308,7 +2308,7 @@ const handleDeleteTransaction = async () => {
                     <div className="relative flex flex-col items-end text-right z-10 pr-1 gap-[2px]">
                       <span className="text-lg font-medium leading-tight">{format(new Date(), 'HH:mm')}</span>
                       <span className="text-[9px] opacity-90 uppercase tracking-widest font-medium mt-1">
-                        {format(new Date(), 'EEE MM-dd', { locale: 'en-US' })}
+                        {format(new Date(), 'EEE MM-dd', { locale: enUS })}
                       </span>
                       <span className="text-[10px] opacity-90 font-medium">
                         {locationName || 'San Francisco'}
