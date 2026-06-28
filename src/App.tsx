@@ -342,32 +342,36 @@ export default function App() {
   // WMO weather codes -> kategori cuaca yang relevan untuk Indonesia (tanpa salju).
   // Tiap kategori punya gradien siang & malam sendiri.
   const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
-    let category: 'cerah' | 'berawan' | 'hujan' | 'badai' = 'berawan';
-    let label = 'Berawan';
+    let category: 'cerah' | 'berawan' | 'hujan' | 'badai' | 'salju' = 'berawan';
+    let label = 'Cloudy';
 
-    if (code === 0) { category = 'cerah'; label = 'Cerah'; }
-    else if (code !== undefined && [1, 2, 3].includes(code)) { category = 'berawan'; label = 'Cerah Berawan'; }
-    else if (code !== undefined && [45, 48].includes(code)) { category = 'berawan'; label = 'Berkabut'; }
-    else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { category = 'hujan'; label = 'Hujan'; }
-    else if (code !== undefined && [95, 96, 99].includes(code)) { category = 'badai'; label = 'Badai Petir'; }
-    // Kode salju (71-77, 85, 86) secara praktis nggak pernah muncul di Indonesia - fallback ke 'berawan'.
+    if (code === 0) { category = 'cerah'; label = 'Sunny'; }
+    else if (code !== undefined && [1, 2, 3].includes(code)) { category = 'berawan'; label = 'Cloudy'; }
+    else if (code !== undefined && [45, 48].includes(code)) { category = 'berawan'; label = 'Cloudy'; }
+    else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { category = 'hujan'; label = 'Heavy rain'; }
+    else if (code !== undefined && [95, 96, 99].includes(code)) { category = 'badai'; label = 'Heavy rain'; }
+    else if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) { category = 'salju'; label = 'Snow'; }
 
     const THEMES = {
       cerah: {
-        day: { gradient: 'from-orange-400 via-red-400 to-amber-300', icon: Sun, iconColor: 'text-amber-100' },
-        night: { gradient: 'from-slate-900 via-indigo-950 to-slate-800', icon: Moon, iconColor: 'text-indigo-200' },
+        day: { gradient: 'from-[#E96D63] to-[#F1A957]', icon: Sun, iconColor: 'text-white' },
+        night: { gradient: 'from-[#1F3E74] to-[#1E3765]', icon: Moon, iconColor: 'text-white' },
       },
       berawan: {
-        day: { gradient: 'from-sky-400 via-blue-400 to-sky-300', icon: CloudSun, iconColor: 'text-white' },
-        night: { gradient: 'from-slate-800 via-blue-950 to-slate-900', icon: Cloud, iconColor: 'text-slate-300' },
+        day: { gradient: 'from-[#3283E2] to-[#4EA3ED]', icon: Cloud, iconColor: 'text-white' },
+        night: { gradient: 'from-[#3283E2] to-[#4EA3ED]', icon: Cloud, iconColor: 'text-white' },
       },
       hujan: {
-        day: { gradient: 'from-blue-600 via-blue-700 to-slate-700', icon: CloudRain, iconColor: 'text-blue-100' },
-        night: { gradient: 'from-slate-900 via-blue-950 to-black', icon: CloudRain, iconColor: 'text-blue-300' },
+        day: { gradient: 'from-[#33354C] to-[#393C55]', icon: CloudRain, iconColor: 'text-white' },
+        night: { gradient: 'from-[#33354C] to-[#393C55]', icon: CloudRain, iconColor: 'text-white' },
       },
       badai: {
-        day: { gradient: 'from-slate-700 via-slate-800 to-zinc-800', icon: CloudLightning, iconColor: 'text-amber-200' },
-        night: { gradient: 'from-zinc-950 via-slate-900 to-black', icon: CloudLightning, iconColor: 'text-amber-300' },
+        day: { gradient: 'from-[#33354C] to-[#393C55]', icon: CloudLightning, iconColor: 'text-white' },
+        night: { gradient: 'from-[#33354C] to-[#393C55]', icon: CloudLightning, iconColor: 'text-white' },
+      },
+      salju: {
+        day: { gradient: 'from-[#F0AC74] to-[#F3B880]', icon: CloudSnow, iconColor: 'text-white' },
+        night: { gradient: 'from-[#213054] to-[#24355D]', icon: CloudSnow, iconColor: 'text-white' },
       },
     } as const;
 
@@ -2229,46 +2233,86 @@ const handleDeleteTransaction = async () => {
               {weatherStatus === 'success' && weatherData && (() => {
                 const { gradient, icon: WeatherIcon, iconColor, label, category } = getWeatherTheme(weatherData.code, weatherData.isDay);
                 return (
-                  <div className={cn("relative bg-gradient-to-br p-5 text-white overflow-hidden", gradient)}>
-                    {/* Decorations - dijaga ringan, cuma CSS/SVG statis */}
+                  <div className={cn("relative bg-gradient-to-r p-4 text-white overflow-hidden flex items-center justify-between", gradient)}>
+                    {/* Background Decorations */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
                       {category === 'cerah' && weatherData.isDay && (
-                        <div className="absolute -right-6 -top-10 w-32 h-32 rounded-full bg-amber-200/30 blur-md" />
+                        <>
+                          <div className="absolute -right-4 top-0 w-32 h-32 rounded-full bg-white/10" />
+                          <div className="absolute right-12 -top-4 w-24 h-24 rounded-full bg-white/10" />
+                          <div className="absolute left-20 bottom-0 w-40 h-24 rounded-t-full bg-white/10 translate-y-12" />
+                        </>
                       )}
                       {category === 'cerah' && !weatherData.isDay && (
-                        <div className="absolute -right-4 -top-8 w-24 h-24 rounded-full bg-yellow-100/20 blur-md" />
+                        <>
+                          <div className="absolute right-8 -top-8 w-24 h-24 rounded-full bg-[#E5D770]" />
+                          <div className="absolute right-2 -top-14 w-36 h-36 rounded-full border-[16px] border-white/5" />
+                          <div className="absolute -right-4 -top-20 w-48 h-48 rounded-full border-[16px] border-white/5" />
+                        </>
                       )}
                       {category === 'berawan' && (
-                        <div className="absolute -right-8 top-2 w-28 h-16 rounded-full bg-white/10 blur-sm" />
+                        <>
+                          <div className="absolute right-0 top-0 w-[120%] h-full">
+                             {/* SVG Waves */}
+                             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-20">
+                                <path fill="white" d="M0,0 Q25,30 50,0 T100,0 L100,100 L0,100 Z" />
+                             </svg>
+                             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-10 translate-y-4">
+                                <path fill="white" d="M0,20 Q30,50 60,10 T100,20 L100,100 L0,100 Z" />
+                             </svg>
+                          </div>
+                        </>
                       )}
-                      {category === 'hujan' && (
-                        <div className="absolute inset-0 flex gap-2.5 justify-end pr-4 opacity-25">
-                          {Array.from({ length: 6 }).map((_, i) => (
-                            <div key={i} className="w-px h-full bg-white" style={{ transform: 'rotate(12deg)' }} />
+                      {(category === 'hujan' || category === 'badai') && (
+                        <div className="absolute inset-0 flex gap-3 justify-end pr-8 opacity-20 overflow-hidden">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <div key={i} className="w-[1px] h-[150%] bg-white -translate-y-4" style={{ transform: 'rotate(25deg)' }} />
                           ))}
                         </div>
                       )}
-                      {category === 'badai' && (
-                        <Zap size={40} className="absolute right-6 top-3 text-amber-200/40 rotate-12" />
+                      {category === 'salju' && weatherData.isDay && (
+                        <>
+                          <div className="absolute left-0 bottom-0 w-full h-full">
+                             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-20">
+                                <path fill="white" d="M0,100 L0,50 Q25,20 50,50 T100,30 L100,100 Z" />
+                             </svg>
+                          </div>
+                        </>
+                      )}
+                      {category === 'salju' && !weatherData.isDay && (
+                        <div className="absolute inset-0 opacity-80">
+                           {/* Snow dots */}
+                           <div className="absolute left-1/4 top-1/4 w-1.5 h-1.5 bg-white rounded-full" />
+                           <div className="absolute left-1/2 top-1/3 w-1 h-1 bg-white rounded-full" />
+                           <div className="absolute left-3/4 top-1/4 w-2 h-2 bg-white rounded-full opacity-70" />
+                           <div className="absolute right-8 bottom-6 w-1.5 h-1.5 bg-white rounded-full" />
+                           {/* Hexagons */}
+                           <div className="absolute left-2/3 top-1/2 w-3 h-3 bg-white/40 rotate-45" />
+                           <div className="absolute right-12 top-1/3 w-2 h-2 bg-white/30 rotate-12" />
+                        </div>
                       )}
                     </div>
 
-                    <div className="relative flex items-start justify-between">
+                    {/* Left Column: Icon + Label & Temp */}
+                    <div className="relative flex flex-col justify-between h-full z-10 pl-1">
                       <div className="flex items-center gap-1.5">
-                        <WeatherIcon size={16} className={iconColor} />
-                        <span className="text-xs font-semibold">{label}</span>
+                        <WeatherIcon size={14} className={iconColor} strokeWidth={2.5} />
+                        <span className="text-[13px] font-medium tracking-wide">{label}</span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold leading-tight">{format(new Date(), 'HH:mm')}</p>
-                        <p className="text-[10px] opacity-70 uppercase leading-tight">{format(new Date(), 'EEE dd-MM', { locale: id })}</p>
+                      <div className="mt-1">
+                        <span className="text-[34px] font-normal leading-none tracking-tight">{weatherData.temp}°</span>
                       </div>
                     </div>
 
-                    <div className="relative flex items-end justify-between mt-3">
-                      <p className="text-3xl font-extrabold leading-none">{weatherData.temp}°</p>
-                      {locationName && (
-                        <p className="text-[10px] font-semibold opacity-80">{locationName}</p>
-                      )}
+                    {/* Right Column: Time, Date, City */}
+                    <div className="relative flex flex-col items-end text-right z-10 pr-1 gap-[2px]">
+                      <span className="text-lg font-medium leading-tight">{format(new Date(), 'HH:mm')}</span>
+                      <span className="text-[9px] opacity-90 uppercase tracking-widest font-medium mt-1">
+                        {format(new Date(), 'EEE MM-dd', { locale: 'en-US' })}
+                      </span>
+                      <span className="text-[10px] opacity-90 font-medium">
+                        {locationName || 'San Francisco'}
+                      </span>
                     </div>
                   </div>
                 );
