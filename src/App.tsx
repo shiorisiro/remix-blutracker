@@ -350,24 +350,54 @@ export default function App() {
   // WMO weather codes -> kategori cuaca yang relevan untuk Indonesia (tanpa salju).
   // Tiap kategori punya gradien siang & malam sendiri.
   const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
-    let category: 'cerah' | 'berawan' | 'hujan' | 'badai' | 'salju' = 'berawan';
+    let category: 'cerah' | 'cerah_berawan' | 'berawan' | 'berkabut' | 'hujan' | 'badai' | 'salju' = 'berawan';
     let label = 'Cloudy';
 
-    if (code === 0) { category = 'cerah'; label = 'Sunny'; }
-    else if (code !== undefined && [1, 2, 3].includes(code)) { category = 'berawan'; label = 'Cloudy'; }
-    else if (code !== undefined && [45, 48].includes(code)) { category = 'berawan'; label = 'Cloudy'; }
-    else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { category = 'hujan'; label = 'Heavy rain'; }
-    else if (code !== undefined && [95, 96, 99].includes(code)) { category = 'badai'; label = 'Heavy rain'; }
-    else if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) { category = 'salju'; label = 'Snow'; }
+    if (code === 0) {
+      category = 'cerah';
+      label = 'Sunny';
+    } else if (code === 1) {
+      category = 'cerah_berawan';
+      label = 'Mostly Sunny';
+    } else if (code === 2) {
+      category = 'cerah_berawan';
+      label = 'Partly Cloudy';
+    } else if (code === 3) {
+      category = 'berawan';
+      label = 'Overcast';
+    } else if (code !== undefined && [45, 48].includes(code)) {
+      category = 'berkabut';
+      label = 'Foggy';
+    } else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 80, 81].includes(code)) {
+      category = 'hujan';
+      label = 'Light Rain';
+    } else if (code !== undefined && [65, 66, 67, 82].includes(code)) {
+      category = 'hujan';
+      label = 'Heavy Rain';
+    } else if (code !== undefined && [95, 96, 99].includes(code)) {
+      category = 'badai';
+      label = 'Thunderstorm';
+    } else if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) {
+      category = 'salju';
+      label = 'Snow';
+    }
 
     const THEMES = {
       cerah: {
         day: { gradient: 'from-[#E96D63] to-[#F1A957]', icon: Sun, iconColor: 'text-white' },
         night: { gradient: 'from-[#1F3E74] to-[#1E3765]', icon: Moon, iconColor: 'text-white' },
       },
+      cerah_berawan: {
+        day: { gradient: 'from-[#F5A642] to-[#E8C96A]', icon: CloudSun, iconColor: 'text-white' },
+        night: { gradient: 'from-[#2A3F6B] to-[#3A5080]', icon: Cloud, iconColor: 'text-white' },
+      },
       berawan: {
         day: { gradient: 'from-[#3283E2] to-[#4EA3ED]', icon: Cloud, iconColor: 'text-white' },
         night: { gradient: 'from-[#3283E2] to-[#4EA3ED]', icon: Cloud, iconColor: 'text-white' },
+      },
+      berkabut: {
+        day: { gradient: 'from-[#7F8C8D] to-[#95A5A6]', icon: CloudFog, iconColor: 'text-white' },
+        night: { gradient: 'from-[#4A4E5A] to-[#5C6070]', icon: CloudFog, iconColor: 'text-white' },
       },
       hujan: {
         day: { gradient: 'from-[#33354C] to-[#393C55]', icon: CloudRain, iconColor: 'text-white' },
