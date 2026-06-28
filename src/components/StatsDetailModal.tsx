@@ -167,15 +167,15 @@ export function StatsDetailModal({
   }, [transactions, selectedCategory]);
 
   // Warna kategori untuk line chart
-  const categoryColors: Record<string, string> = {
-    'Makanan': '#FF6B6B',
-    'Belanja': '#4ECDC4',
-    'Bensin': '#FFD93D',
-    'Perbaikan': '#A29BFE',
-    'Hiburan': '#6C5CE7',
-    'Modal Usaha': '#00B894',
-    'Lainnya': '#95afc0',
-  };
+  const categoryColors: Record<string, string> = useMemo(() => {
+    const colors: Record<string, string> = {};
+    if (CATEGORY_CONFIG) {
+      Object.entries(CATEGORY_CONFIG).forEach(([cat, conf]: any) => {
+        colors[cat] = conf.color;
+      });
+    }
+    return colors;
+  }, [CATEGORY_CONFIG]);
 
   const WrapperTag: any = embedded ? 'div' : motion.div;
   const wrapperProps: any = embedded
