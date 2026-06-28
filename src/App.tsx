@@ -61,7 +61,15 @@ import {
   Coins,
   CalendarClock,
   Mic,
-  MicOff
+  MicOff,
+  Bus,
+  HeartPulse,
+  GraduationCap,
+  Scissors,
+  Banknote,
+  ArrowDownToLine,
+  Landmark,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { id, enUS } from 'date-fns/locale';
@@ -683,18 +691,27 @@ export default function App() {
 
   const CATEGORY_CONFIG: Record<string, { color: string, icon: any }> = {
     // Pengeluaran
-    'Makanan': { color: '#FF6B6B', icon: Utensils },
+    'Makanan & Minuman': { color: '#FF6B6B', icon: Utensils },
+    'Makanan': { color: '#FF6B6B', icon: Utensils }, // legacy
     'Belanja': { color: '#4ECDC4', icon: ShoppingBag },
+    'Transportasi': { color: '#74B9FF', icon: Bus },
     'Bensin': { color: '#FFD93D', icon: Fuel },
-    'Perbaikan': { color: '#A29BFE', icon: Wrench },
+    'Kesehatan': { color: '#55EFC4', icon: HeartPulse },
+    'Pendidikan': { color: '#A29BFE', icon: GraduationCap },
+    'Tagihan & Utilitas': { color: '#FD79A8', icon: MonitorSmartphone },
     'Hiburan': { color: '#6C5CE7', icon: Play },
+    'Perbaikan': { color: '#FFEAA7', icon: Wrench },
+    'Kecantikan & Perawatan': { color: '#FDCB6E', icon: Scissors },
     'Modal Usaha': { color: '#00B894', icon: Package },
     // Pemasukan
     'Gaji': { color: '#0984E3', icon: Briefcase },
     'Penjualan': { color: '#00CEC9', icon: Store },
     'Bonus': { color: '#FDCB6E', icon: Award },
     'Proyek': { color: '#6C5CE7', icon: Code2 },
+    'Freelance': { color: '#E17055', icon: Landmark },
+    'Investasi': { color: '#00B894', icon: TrendingUp },
     'Hadiah': { color: '#FF7675', icon: Gift },
+    'Transfer Masuk': { color: '#74B9FF', icon: ArrowDownToLine },
     // Hutang/Piutang
     'Pinjaman': { color: '#E17055', icon: Coins },
     'Cicilan': { color: '#636E72', icon: CalendarClock },
@@ -1565,7 +1582,31 @@ const handleDeleteTransaction = async () => {
                 }
               },
               {
-                text: "Extract transaction details from this receipt. Return JSON with fields: title, amount (number), type (income or expense), category (Food, Salary, Entertainment, Shopping, Bensin, Perbaikan, Bonus, General), and classification (personal or business)."
+                text: `You are a smart financial transaction extractor. Analyze this receipt image and extract the transaction details.
+
+Return a JSON object with these exact fields:
+- title: Short descriptive name of the transaction (in Indonesian if possible)
+- amount: Total amount as a number (no currency symbol, no separators)
+- type: Either "income" or "expense"
+- category: Must be EXACTLY one of these values:
+  For expense: "Makanan & Minuman", "Belanja", "Transportasi", "Bensin", "Kesehatan", "Pendidikan", "Tagihan & Utilitas", "Hiburan", "Perbaikan", "Kecantikan & Perawatan", "Modal Usaha", "Lainnya"
+  For income: "Gaji", "Penjualan", "Bonus", "Proyek", "Freelance", "Investasi", "Hadiah", "Transfer Masuk", "Lainnya"
+- classification: Either "personal" or "business"
+
+Category selection guide:
+- Restaurant, cafe, food stall, bakery, drinks → "Makanan & Minuman"
+- Clothing, shoes, accessories, online shop, supermarket → "Belanja"
+- Taxi, ojek, grab, gojek, bus, train, parking, toll, shipping → "Transportasi"
+- Gas station, petrol, bbm → "Bensin"
+- Hospital, clinic, pharmacy, doctor, medicine → "Kesehatan"
+- School, tuition, course, book, workshop → "Pendidikan"
+- Electricity, water, internet, phone credit, subscription, rent → "Tagihan & Utilitas"
+- Cinema, concert, hotel, game → "Hiburan"
+- Car/motor service, repair, spare parts → "Perbaikan"
+- Salon, barbershop, skincare, cosmetics, spa → "Kecantikan & Perawatan"
+- Business supplies, stock, raw materials → "Modal Usaha"
+- Salary receipt → "Gaji", income
+- Product sales → "Penjualan", income`
               }
             ]
           }],
@@ -1591,10 +1632,13 @@ const handleDeleteTransaction = async () => {
 
       const resultText = responseData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
       const extracted = JSON.parse(resultText);
+      const txType = (extracted.type === 'income' ? 'income' : 'expense') as 'income' | 'expense';
+      const validCats = CATEGORIES_BY_TYPE[txType];
+      const detectedCat = validCats.includes(extracted.category) ? extracted.category : 'Lainnya';
       setNewTitle(extracted.title || '');
       setNewAmount(formatInputNumber(extracted.amount?.toString() || ''));
-      setNewType(extracted.type || 'expense');
-      setNewCategory(extracted.category || 'General');
+      setNewType(txType);
+      setNewCategory(detectedCat);
       setNewClassification(extracted.classification || 'personal');
       setNewTime(format(new Date(), 'HH:mm'));
       setIsScannerOpen(false);
@@ -1619,19 +1663,96 @@ const handleDeleteTransaction = async () => {
   // ============================================================
 
   const CATEGORY_VOICE_KEYWORDS: Record<string, string[]> = {
-    'Gaji': ['gaji', 'upah'],
-    'Penjualan': ['jual', 'penjualan', 'dagang', 'omset', 'omzet'],
-    'Bonus': ['bonus'],
-    'Proyek': ['proyek', 'project', 'jasa', 'klien'],
-    'Hadiah': ['hadiah', 'kado'],
-    'Makanan': ['makan', 'jajan', 'makanan', 'kuliner'],
-    'Belanja': ['belanja', 'shopping'],
-    'Bensin': ['bensin', 'pertalite', 'pertamax', 'solar'],
-    'Perbaikan': ['servis', 'service', 'perbaikan', 'bengkel'],
-    'Hiburan': ['nonton', 'hiburan', 'liburan'],
-    'Modal Usaha': ['modal', 'stok', 'bahan baku'],
-    'Pinjaman': ['pinjam', 'hutang', 'utang'],
-    'Cicilan': ['cicilan', 'angsuran'],
+    // === PEMASUKAN ===
+    'Gaji': [
+      'gaji', 'upah', 'salary', 'slip gaji', 'terima gaji', 'dapat gaji', 'bayaran', 'honor', 'honorarium',
+    ],
+    'Penjualan': [
+      'jual', 'jualan', 'penjualan', 'dagang', 'berdagang', 'omset', 'omzet', 'terjual', 'laku',
+      'pendapatan toko', 'hasil jual', 'closing', 'transaksi', 'revenue',
+    ],
+    'Bonus': [
+      'bonus', 'reward', 'thr', 'tunjangan hari raya', 'insentif', 'incentive', 'komisi', 'uang lebaran',
+    ],
+    'Proyek': [
+      'proyek', 'project', 'klien', 'client', 'job', 'kontrak', 'pekerjaan',
+    ],
+    'Freelance': [
+      'freelance', 'lepas', 'jasa', 'desain', 'design', 'ngoding', 'coding', 'nulis', 'konten', 'content',
+      'fotografer', 'foto', 'video', 'edit video', 'editing', 'ojol', 'kurir', 'les privat', 'kursus',
+    ],
+    'Investasi': [
+      'investasi', 'dividen', 'dividend', 'keuntungan saham', 'profit saham', 'yield', 'bunga deposito',
+      'hasil investasi', 'trading', 'kripto', 'crypto', 'bitcoin', 'reksa dana', 'return',
+    ],
+    'Hadiah': [
+      'hadiah', 'kado', 'gift', 'sedekah masuk', 'sumbangan masuk', 'uang angpao', 'cashback', 'cashback masuk',
+    ],
+    'Transfer Masuk': [
+      'transfer masuk', 'kirim duit', 'kiriman', 'terima transfer', 'top up', 'topup masuk',
+    ],
+    // === PENGELUARAN ===
+    'Makanan & Minuman': [
+      'makan', 'jajan', 'makanan', 'minuman', 'kuliner', 'restoran', 'restaurant', 'warung', 'warteg',
+      'kafe', 'cafe', 'coffee', 'kopi', 'boba', 'mie', 'nasi', 'lauk', 'sarapan', 'siang', 'malam', 'dinner',
+      'lunch', 'breakfast', 'snack', 'cemilan', 'junk food', 'fast food', 'mcd', 'kfc', 'pizza', 'burger',
+      'bakso', 'soto', 'ayam', 'seafood', 'padang', 'sushi', 'ramen', 'indomie', 'gofood', 'grabfood', 'shopeefood',
+      'goFood', 'traktir', 'trakir', 'ngopi', 'ngemil',
+    ],
+    'Belanja': [
+      'belanja', 'shopping', 'beli', 'beli baju', 'beli barang', 'pakaian', 'sepatu', 'tas', 'aksesoris',
+      'indomaret', 'alfamart', 'minimarket', 'supermarket', 'carrefour', 'hypermart', 'shopee', 'tokopedia',
+      'lazada', 'blibli', 'tiktok shop', 'online shop', 'swalayan', 'beli online', 'order',
+    ],
+    'Transportasi': [
+      'transportasi', 'transport', 'ojek', 'ojol', 'gojek', 'grab', 'maxim', 'indriver', 'taxi', 'taksi',
+      'bus', 'angkot', 'kereta', 'mrt', 'krl', 'commuter', 'lrt', 'pesawat', 'tiket', 'toll', 'tol',
+      'parkir', 'karcis', 'ongkir', 'ongkos kirim', 'bayar ojek', 'naik grab', 'naik gojek',
+    ],
+    'Bensin': [
+      'bensin', 'pertalite', 'pertamax', 'solar', 'spbu', 'pertamina', 'isi bensin', 'ngisi bensin',
+      'isi bbm', 'bbm', 'bahan bakar', 'premium', 'shell', 'vivo',
+    ],
+    'Kesehatan': [
+      'kesehatan', 'dokter', 'obat', 'apotek', 'apotik', 'klinik', 'rumah sakit', 'rs', 'puskesmas',
+      'rawat', 'berobat', 'periksa', 'cek darah', 'lab', 'laboratorium', 'bpjs', 'asuransi kesehatan',
+      'vitamin', 'suplemen', 'skincare', 'sabun muka', 'perawatan kulit',
+    ],
+    'Pendidikan': [
+      'pendidikan', 'sekolah', 'kuliah', 'kampus', 'les', 'kursus', 'bimbel', 'bimbingan belajar',
+      'spp', 'ukt', 'uang pangkal', 'buku', 'alat tulis', 'stationery', 'seminar', 'workshop', 'pelatihan',
+      'training', 'kelas online', 'udemy', 'ruangguru', 'zenius',
+    ],
+    'Tagihan & Utilitas': [
+      'tagihan', 'listrik', 'pln', 'air', 'pdam', 'internet', 'wifi', 'indihome', 'firstmedia', 'biznet',
+      'myrepublic', 'telkom', 'pulsa', 'kuota', 'paket data', 'telepon', 'token listrik', 'bayar listrik',
+      'gas', 'lpg', 'gas elpiji', 'sewa', 'kosan', 'kontrakan', 'kost', 'kos', 'netflix', 'spotify',
+      'youtube premium', 'icloud', 'google one', 'subscription', 'langganan', 'iuran',
+    ],
+    'Hiburan': [
+      'hiburan', 'nonton', 'bioskop', 'cinema', 'film', 'konser', 'event', 'liburan', 'wisata', 'jalan jalan',
+      'jalan-jalan', 'piknik', 'hotel', 'penginapan', 'resort', 'karaoke', 'game', 'gaming', 'playstation',
+      'nintendo', 'buku novel', 'komik', 'viu', 'disney', 'main',
+    ],
+    'Perbaikan': [
+      'servis', 'service', 'perbaikan', 'bengkel', 'reparasi', 'montir', 'tambal ban', 'ganti oli',
+      'cuci motor', 'cuci mobil', 'spare part', 'suku cadang', 'renovasi', 'tukang', 'cat rumah', 'plumber',
+    ],
+    'Kecantikan & Perawatan': [
+      'salon', 'barbershop', 'pangkas', 'gunting rambut', 'potong rambut', 'facial', 'spa', 'pijat', 'massage',
+      'perawatan', 'make up', 'makeup', 'lipstik', 'kosmetik', 'parfum', 'waxing', 'manicure', 'pedicure',
+    ],
+    'Modal Usaha': [
+      'modal', 'stok', 'stock', 'bahan baku', 'kulakan', 'restock', 'belanja usaha', 'keperluan usaha',
+      'bayar supplier', 'supplier', 'sewa tempat usaha', 'sewa toko', 'operasional',
+    ],
+    // === HUTANG/PIUTANG ===
+    'Pinjaman': [
+      'pinjam', 'hutang', 'utang', 'ngutang', 'kasbon', 'kredit', 'pinjol', 'pinjaman online',
+    ],
+    'Cicilan': [
+      'cicilan', 'angsuran', 'nyicil', 'kredit motor', 'kredit mobil', 'kpr', 'bayar cicilan',
+    ],
   };
 
   const parseVoiceTransaction = (rawText: string) => {
@@ -1653,8 +1774,17 @@ const handleDeleteTransaction = async () => {
     }
 
     // 2) Tipe transaksi
-    const incomeKeywords = ['terima', 'dapat', 'jual', 'penjualan', 'gaji', 'bonus', 'untung', 'pendapatan', 'omset', 'omzet', 'dikasih'];
-    const expenseKeywords = ['beli', 'bayar', 'belanja', 'bensin', 'servis', 'service', 'perbaikan', 'keluar'];
+    const incomeKeywords = [
+      'terima', 'dapat', 'jual', 'jualan', 'penjualan', 'gaji', 'bonus', 'untung', 'pendapatan',
+      'omset', 'omzet', 'dikasih', 'laku', 'closing', 'revenue', 'profit', 'dividen', 'dividend',
+      'thr', 'cashback', 'freelance', 'investasi', 'kiriman', 'transfer masuk',
+    ];
+    const expenseKeywords = [
+      'beli', 'bayar', 'belanja', 'bensin', 'servis', 'service', 'perbaikan', 'keluar', 'bayar',
+      'nonton', 'jajan', 'makan', 'kopi', 'isi bensin', 'ongkir', 'tagihan', 'listrik', 'sewa',
+      'langganan', 'pulsa', 'kuota', 'ojek', 'grab', 'gojek', 'parkir', 'tol', 'cicilan',
+      'ngutang', 'pinjam', 'salon', 'les', 'obat',
+    ];
 
     let type: 'income' | 'expense' = 'expense';
     if (incomeKeywords.some(k => text.includes(k))) type = 'income';
