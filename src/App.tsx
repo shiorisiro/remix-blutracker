@@ -4,7 +4,6 @@ import {
   Check, Loader2, X, AlertCircle, Sparkles, Bot, CreditCard,
   ArrowDownLeft, ArrowUpRight, Trash2, Download,
   Search, Edit2, Sun, Moon,
-  Sector,
   Utensils, ShoppingBag, Bus, Fuel, HeartPulse, GraduationCap,
   MonitorSmartphone, Play, Wrench, Scissors, Package, Briefcase,
   Store, Award, Code2, Landmark, Gift, ArrowDownToLine, Coins,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { Sector } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
@@ -765,48 +765,6 @@ export default function App() {
                 </AnimatePresence>
                 {!isSearchOpen && (
                   <div className="flex items-center gap-1">
-                    {/* Theme toggle - pointer-events-none on motion children fixes Android tap */}
-                    <button
-                      onClick={toggleTheme}
-                      className={cn(
-                        "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
-                        theme === 'light' ? "bg-sky-200" : "bg-slate-950 border border-slate-800"
-                      )}
-                      title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
-                    >
-                      <div className="absolute inset-0 pointer-events-none">
-                        {theme === 'light' ? (
-                          <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
-                            <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
-                          </div>
-                        ) : (
-                          <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
-                            <span className="text-white text-[6px] leading-none">✦</span>
-                            <span className="text-yellow-100 text-[4px] leading-none">✦</span>
-                            <span className="text-white text-[5px] leading-none">✦</span>
-                          </div>
-                        )}
-                      </div>
-                      <motion.div
-                        animate={{ x: theme === 'light' ? 2 : 26 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        className={cn(
-                          "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-none",
-                          theme === 'light' ? "bg-amber-400" : "bg-slate-700"
-                        )}
-                      >
-                        <motion.div
-                          animate={{ rotate: theme === 'light' ? 0 : 360 }}
-                          transition={{ duration: 0.5, ease: "easeInOut" }}
-                          className="pointer-events-none"
-                        >
-                          {theme === 'light'
-                            ? <Sun size={13} className="fill-white text-white" />
-                            : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
-                          }
-                        </motion.div>
-                      </motion.div>
-                    </button>
                     <button
                       onClick={() => setIsDebtModalOpen(true)}
                       className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
