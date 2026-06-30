@@ -3,12 +3,13 @@ import {
   Plus, Wallet, History, TrendingUp, User as UserIcon, Mic, Camera,
   Check, Loader2, X, AlertCircle, Sparkles, Bot, CreditCard,
   ArrowDownLeft, ArrowUpRight, Trash2, Download,
+  Search, Edit2, Sun, Moon,
+  Sector,
   Utensils, ShoppingBag, Bus, Fuel, HeartPulse, GraduationCap,
   MonitorSmartphone, Play, Wrench, Scissors, Package, Briefcase,
   Store, Award, Code2, Landmark, Gift, ArrowDownToLine, Coins,
   CalendarClock, LayoutGrid,
 } from 'lucide-react';
-import { Sector } from 'recharts';
 import { format, parseISO, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, subDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,11 +17,13 @@ import { Transaction, TransactionType, DebtType } from './types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { auth, AppUser, onAuthStateChange, signInWithEmail, signUpWithEmail, updateUserProfile, signInWithGoogle } from './auth';
-import { db, flushQueue } from './offlineDb';
-import { supabase } from './supabase-client';
+import { flushQueue } from './offlineDb';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { useSyncStatus } from './useSyncStatus';
+import { supabase } from './supabase-client';
 import { useTheme } from './ThemeContext';
-import { LoginPage as LoginScreen } from './components/LoginScreen';
+import { LoginScreen } from './components/LoginScreen';
 import { cn } from './lib/utils';
 import { INITIAL_TRANSACTIONS, CATEGORIES_BY_TYPE, CATEGORY_MIGRATION_MAP } from './constants';
 import { TransactionItem } from './components/TransactionItem';
@@ -101,6 +104,7 @@ export default function App() {
   // ── Transactions ──────────────────────────────────────────────────────────
   const {
     transactions,
+    setTransactions,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -110,6 +114,7 @@ export default function App() {
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'home' | 'stats' | 'history' | 'profile'>('home');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -647,7 +652,14 @@ export default function App() {
     try { setAuthError(null); await signInWithGoogle(); }
     catch (e: any) { setAuthError(`Login Google gagal: ${e.message}`); }
   };
-  const logout = async () => { try { await auth.signOut(); } catch { /* ignore */ } };
+  const logout = async () => {
+    try {
+      setTransactions([]); // Clear immediately so UI doesn't show stale data, and tap registers right away
+      await auth.signOut();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+  };
 
   // ── Render guards ─────────────────────────────────────────────────────────
   if (!authReady) {
@@ -672,45 +684,237 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto bg-[#F8FAFC] dark:bg-[#08090B] text-gray-900 dark:text-white min-h-screen relative shadow-2xl overflow-hidden transition-colors duration-200 border-x border-gray-100 dark:border-[#14181E] flex flex-col">
-      {/* Status bar spacer */}
-      <div className="h-[env(safe-area-inset-top)] sticky top-0 z-[110] border-b transition-colors duration-200"
-        style={{ backgroundColor: theme === 'dark' ? '#0D0F12' : '#FFFFFF', borderColor: theme === 'dark' ? '#22272F' : '#F1F5F9' }}
+      {/* Safe area top spacer - NOT sticky, avoids double gap on Android */}
+      <div
+        className="h-[env(safe-area-inset-top)] shrink-0 transition-colors duration-200"
+        style={{ backgroundColor: theme === 'dark' ? '#0D0F12' : '#FFFFFF' }}
       />
 
-      {/* Home header */}
-      {activeTab === 'home' && (
-        <header className="bg-white dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-gray-100 dark:bg-[#14181E] rounded-2xl flex items-center justify-center overflow-hidden border border-gray-200 dark:border-[#22272F]">
-                <img src="./logo.png" alt="BluTracker" className="w-full h-full object-cover" />
+      <div className="flex-1 overflow-y-auto pb-24">
+        {/* Header - Only on Home (original layout) */}
+        {activeTab === 'home' && (
+          <header className="bg-[#FFFFFF] dark:bg-[#0D0F12] p-6 rounded-b-[40px] shadow-sm border-b border-gray-100 dark:border-[#22272F] transition-colors duration-200">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-2.5">
+                <div className="w-11 h-11 bg-gray-100 dark:bg-[#14181E] rounded-2xl flex items-center justify-center overflow-hidden shadow-sm relative border border-gray-200 dark:border-[#22272F]">
+                  <img src="./logo.png" alt="BluTracker" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex flex-col select-none">
+                  <p className="text-xs text-gray-400 font-medium tracking-wide">{getGreeting()},</p>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <input
+                        type="text"
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        className="bg-gray-50 dark:bg-[#14181E] border border-gray-200 dark:border-[#22272F] rounded-lg px-2 py-0.5 text-xs font-semibold text-gray-800 dark:text-white focus:outline-none w-24"
+                        placeholder="Nama baru..."
+                        disabled={isSavingName}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName();
+                          else if (e.key === 'Escape') setIsEditingName(false);
+                        }}
+                      />
+                      <button onClick={handleSaveName} disabled={isSavingName} className="p-1 hover:bg-gray-100 dark:hover:bg-[#14181E] rounded text-emerald-500 transition-colors cursor-pointer">
+                        {isSavingName ? <Loader2 className="animate-spin" size={12} /> : <Check size={12} />}
+                      </button>
+                      <button onClick={() => setIsEditingName(false)} disabled={isSavingName} className="p-1 hover:bg-gray-100 dark:hover:bg-[#14181E] rounded text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => { setTempName(user.displayName || user.email?.split('@')[0] || ''); setIsEditingName(true); }}
+                      className="group flex items-center gap-1 cursor-pointer hover:opacity-85 transition-all"
+                    >
+                      <span className="font-bold text-sm tracking-tight text-gray-950 dark:text-white max-w-[120px] truncate">
+                        {user.displayName || user.email?.split('@')[0] || 'Pengguna'}
+                      </span>
+                      <Edit2 size={10} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#CFFF0F]" />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-400 font-medium">{getGreeting()},</p>
-                <p className="font-bold text-sm text-gray-900 dark:text-white truncate max-w-[140px]">
-                  {user.displayName || user.email?.split('@')[0] || 'Pengguna'}
-                </p>
+
+              <div className="flex items-center gap-2 flex-1 justify-end">
+                <AnimatePresence>
+                  {isSearchOpen && (
+                    <motion.div
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: '100%', opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      className="relative flex-1"
+                    >
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Cari transaksi..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-4 pr-10 py-1.5 bg-gray-50 dark:bg-[#14181E] rounded-xl text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#CFFF0F] transition-all text-sm"
+                      />
+                      <button
+                        onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                      >
+                        <X size={15} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {!isSearchOpen && (
+                  <div className="flex items-center gap-1">
+                    {/* Theme toggle - pointer-events-none on motion children fixes Android tap */}
+                    <button
+                      onClick={toggleTheme}
+                      className={cn(
+                        "relative w-[52px] h-[28px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center shadow-inner",
+                        theme === 'light' ? "bg-sky-200" : "bg-slate-950 border border-slate-800"
+                      )}
+                      title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+                    >
+                      <div className="absolute inset-0 pointer-events-none">
+                        {theme === 'light' ? (
+                          <div className="absolute right-2 top-[7px] w-4 h-2 bg-white/90 rounded-full">
+                            <div className="absolute -top-1 left-1 w-3 h-3 bg-white/90 rounded-full" />
+                          </div>
+                        ) : (
+                          <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-[3px] items-center opacity-70">
+                            <span className="text-white text-[6px] leading-none">✦</span>
+                            <span className="text-yellow-100 text-[4px] leading-none">✦</span>
+                            <span className="text-white text-[5px] leading-none">✦</span>
+                          </div>
+                        )}
+                      </div>
+                      <motion.div
+                        animate={{ x: theme === 'light' ? 2 : 26 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        className={cn(
+                          "absolute w-6 h-6 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-none",
+                          theme === 'light' ? "bg-amber-400" : "bg-slate-700"
+                        )}
+                      >
+                        <motion.div
+                          animate={{ rotate: theme === 'light' ? 0 : 360 }}
+                          transition={{ duration: 0.5, ease: "easeInOut" }}
+                          className="pointer-events-none"
+                        >
+                          {theme === 'light'
+                            ? <Sun size={13} className="fill-white text-white" />
+                            : <Moon size={13} className="fill-yellow-200 text-yellow-200" />
+                          }
+                        </motion.div>
+                      </motion.div>
+                    </button>
+                    <button
+                      onClick={() => setIsDebtModalOpen(true)}
+                      className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
+                      title="Hutang & Piutang"
+                    >
+                      <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.35)] transform hover:scale-110 active:scale-95 transition-all inline-block">
+                        <CreditCard size={18} />
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setIsSearchOpen(true)}
+                      className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
+                    >
+                      <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.35)] transform hover:scale-110 active:scale-95 transition-all inline-block">
+                        <Search size={18} />
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            {/* One secondary action in header */}
-            <button onClick={() => setIsDebtModalOpen(true)} className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all text-gray-700 dark:text-white cursor-pointer" title="Hutang & Piutang">
-              <CreditCard size={18} />
-            </button>
-          </div>
-        </header>
-      )}
 
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto pb-28">
-        <main className="p-5 space-y-6">
+            {/* Balance Card - original micro grid layout (income/expense INSIDE card) */}
+            <div className="bg-gray-950 text-white p-6 rounded-[32px] relative overflow-hidden mb-6 border border-white/5 shadow-xl shadow-black/35 select-none bg-gradient-to-br from-[#0D0F12] via-[#14181E] to-[#0D1014]">
+              <div className="absolute -right-12 -top-12 w-32 h-32 bg-[#CFFF0F]/10 rounded-full blur-[40px] pointer-events-none" />
+              <div className="absolute -left-12 -bottom-12 w-32 h-32 bg-[#00F5FF]/5 rounded-full blur-[40px] pointer-events-none" />
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-gray-400 font-bold font-display">
+                    {isCurrentMonth ? 'Active Portfolio Balance' : 'Portfolio Balance'}
+                  </p>
+                  <h2 className="text-3xl font-extrabold tracking-tight mt-1 font-display">
+                    {formatCurrency(totalBalanceToDisplay)}
+                  </h2>
+                </div>
+                <span className="text-[10px] uppercase font-extrabold px-2.5 py-1 bg-[#CFFF0F] text-black rounded-lg tracking-wider shadow-sm shadow-[#CFFF0F]/15">
+                  IDR
+                </span>
+              </div>
+              {!isCurrentMonth && (
+                <p className="text-[11px] text-gray-400 font-medium mb-4 flex items-center gap-1">
+                  <span>Saldo Awal Bulan:</span>
+                  <span className="text-white font-semibold">{formatCurrency(startBalance)}</span>
+                </p>
+              )}
+              {/* Micro grid - income & expense INSIDE the card */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-[#CFFF0F]/10 rounded-lg flex items-center justify-center">
+                    <ArrowDownLeft size={14} className="text-[#CFFF0F]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-medium">Income</p>
+                    <p className="text-xs font-bold text-white tracking-wide">{formatCurrency(monthlyIncome)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 border-l border-white/5 pl-3">
+                  <div className="w-7 h-7 bg-[#00F5FF]/10 rounded-lg flex items-center justify-center">
+                    <ArrowUpRight size={14} className="text-[#00F5FF]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-medium">Expenses</p>
+                    <p className="text-xs font-bold text-white tracking-wide">{formatCurrency(monthlyExpense)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Month Selector */}
+            <div className="flex items-center justify-between bg-transparent px-4 py-2 text-xs w-full">
+              <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-lg transition-colors text-gray-500 dark:text-gray-300 cursor-pointer select-none">
+                <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.25)] block">
+                  <ArrowDownLeft size={14} className="rotate-45" />
+                </span>
+              </button>
+              <div className="font-extrabold text-xs tracking-widest text-gray-800 dark:text-white uppercase font-display">
+                {format(selectedMonth, 'MMMM yyyy', { locale: id })}
+              </div>
+              <button
+                onClick={handleNextMonth}
+                disabled={isCurrentMonth}
+                className={cn("p-1.5 rounded-lg transition-colors cursor-pointer select-none", isCurrentMonth ? "opacity-35 cursor-not-allowed text-gray-300" : "text-gray-500 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/40")}
+              >
+                <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.25)] block">
+                  <ArrowUpRight size={14} className="rotate-45" />
+                </span>
+              </button>
+            </div>
+          </header>
+        )}
+
+        {/* Main Content */}
+        <main className="p-6 space-y-8">
           {activeTab === 'home' && (
             <HomeScreen
-              user={user} theme={theme} transactions={transactions} selectedMonth={selectedMonth}
-              onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} isCurrentMonth={isCurrentMonth}
-              formatCurrency={formatCurrency} chartData={chartData} weeklyTrend={weeklyTrend}
-              totalBalanceToDisplay={totalBalanceToDisplay} monthlyIncome={monthlyIncome}
-              monthlyExpense={monthlyExpense} startBalance={startBalance}
-              weatherStatus={weatherStatus} weatherData={weatherData} locationName={locationName}
+              theme={theme}
+              isCurrentMonth={isCurrentMonth}
+              formatCurrency={formatCurrency}
+              chartData={chartData}
+              weeklyTrend={weeklyTrend}
+              totalBalanceToDisplay={totalBalanceToDisplay}
+              monthlyIncome={monthlyIncome}
+              monthlyExpense={monthlyExpense}
+              startBalance={startBalance}
+              weatherStatus={weatherStatus}
+              weatherData={weatherData}
+              locationName={locationName}
+              selectedMonth={selectedMonth}
             />
           )}
           {activeTab === 'stats' && (
@@ -718,15 +922,14 @@ export default function App() {
               theme={theme} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
               CATEGORY_CONFIG={CATEGORY_CONFIG} categories={CATEGORIES_BY_TYPE.expense}
               categoryPieData={categoryPieData} transactions={transactions}
-              selectedMonth={selectedMonth} formatCurrency={formatCurrency}
-              CustomTooltip={CustomTooltip} monthlyExpense={monthlyExpense}
-              setTransactionToDelete={setTransactionToDelete} handleEditClick={handleEditClick}
-              handleToggleSettled={handleToggleSettled} revealedId={revealedId}
-              handleReveal={handleReveal} statsView={statsView} setStatsView={setStatsView}
-              isCurrentMonth={isCurrentMonth} handlePrevMonth={handlePrevMonth}
-              handleNextMonth={handleNextMonth} hourlyData={hourlyData} chartData={chartData}
-              monthlyChartData={monthlyChartData} categoryChartData={categoryChartData}
-              VariableRadiusSector={VariableRadiusSector} renderInsideLabels={renderInsideLabels}
+              selectedMonth={selectedMonth} formatCurrency={formatCurrency} CustomTooltip={CustomTooltip}
+              monthlyExpense={monthlyExpense} setTransactionToDelete={setTransactionToDelete}
+              handleEditClick={handleEditClick} handleToggleSettled={handleToggleSettled}
+              revealedId={revealedId} handleReveal={handleReveal} statsView={statsView}
+              setStatsView={setStatsView} isCurrentMonth={isCurrentMonth}
+              handlePrevMonth={handlePrevMonth} handleNextMonth={handleNextMonth}
+              hourlyData={hourlyData} chartData={chartData} monthlyChartData={monthlyChartData}
+              categoryChartData={categoryChartData} VariableRadiusSector={VariableRadiusSector} renderInsideLabels={renderInsideLabels}
             />
           )}
           {activeTab === 'history' && (

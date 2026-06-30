@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   ArrowDownLeft, ArrowUpRight, Sun, Moon, Cloud, CloudRain, CloudSun, CloudFog,
   CloudLightning, CloudSnow, MapPin, TrendingUp, TrendingDown, Loader2,
@@ -7,44 +7,25 @@ import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { motion } from 'framer-motion';
-import { format, parseISO, isSameMonth, subMonths, addMonths } from 'date-fns';
-import { id, enUS } from 'date-fns/locale';
-import { Transaction } from '../types';
+import { format } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import { cn } from '../lib/utils';
-import { AppUser } from '../auth';
 
-interface HomeScreenProps {
-  user: AppUser | null;
-  theme: string;
-  transactions: Transaction[];
-  selectedMonth: Date;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  isCurrentMonth: boolean;
-  formatCurrency: (n: number) => string;
-  chartData: any[];
-  weeklyTrend: any;
-  totalBalanceToDisplay: number;
-  monthlyIncome: number;
-  monthlyExpense: number;
-  startBalance: number;
-  weatherStatus: 'loading' | 'success' | 'error' | 'denied';
-  weatherData: { temp: number; code: number; isDay: boolean } | null;
-  locationName: string | null;
-}
+type WeatherCategory = 'cerah' | 'cerah_berawan' | 'berawan' | 'berkabut' | 'hujan' | 'badai' | 'salju';
 
-const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
-  let category: 'cerah' | 'cerah_berawan' | 'berawan' | 'berkabut' | 'hujan' | 'badai' | 'salju' = 'berawan';
+function getWeatherTheme(code: number | undefined, isDay: boolean) {
+  let category: WeatherCategory = 'berawan';
   let label = 'Cloudy';
+
   if (code === 0) { category = 'cerah'; label = 'Sunny'; }
-  else if (code === 1 || code === 2) { category = 'cerah_berawan'; label = code === 1 ? 'Mostly Sunny' : 'Partly Cloudy'; }
+  else if (code === 1) { category = 'cerah_berawan'; label = 'Mostly Sunny'; }
+  else if (code === 2) { category = 'cerah_berawan'; label = 'Partly Cloudy'; }
   else if (code === 3) { category = 'berawan'; label = 'Overcast'; }
   else if (code !== undefined && [45, 48].includes(code)) { category = 'berkabut'; label = 'Foggy'; }
-  else if (code !== undefined && [51,53,55,56,57,61,63,80,81].includes(code)) { category = 'hujan'; label = 'Light Rain'; }
-  else if (code !== undefined && [65,66,67,82].includes(code)) { category = 'hujan'; label = 'Heavy Rain'; }
-  else if (code !== undefined && [95,96,99].includes(code)) { category = 'badai'; label = 'Thunderstorm'; }
-  else if (code !== undefined && [71,73,75,77,85,86].includes(code)) { category = 'salju'; label = 'Snow'; }
+  else if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 80, 81].includes(code)) { category = 'hujan'; label = 'Light Rain'; }
+  else if (code !== undefined && [65, 66, 67, 82].includes(code)) { category = 'hujan'; label = 'Heavy Rain'; }
+  else if (code !== undefined && [95, 96, 99].includes(code)) { category = 'badai'; label = 'Thunderstorm'; }
+  else if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) { category = 'salju'; label = 'Snow'; }
 
   const THEMES = {
     cerah: {
@@ -79,14 +60,26 @@ const getWeatherTheme = (code: number | undefined, isDay: boolean) => {
 
   const variant = isDay ? THEMES[category].day : THEMES[category].night;
   return { ...variant, label, category };
-};
+}
+
+interface HomeScreenProps {
+  theme: string;
+  selectedMonth: Date;
+  isCurrentMonth: boolean;
+  formatCurrency: (n: number) => string;
+  chartData: any[];
+  weeklyTrend: any;
+  totalBalanceToDisplay: number;
+  monthlyIncome: number;
+  monthlyExpense: number;
+  startBalance: number;
+  weatherStatus: 'loading' | 'success' | 'error' | 'denied';
+  weatherData: { temp: number; code: number; isDay: boolean } | null;
+  locationName: string | null;
+}
 
 export function HomeScreen({
   theme,
-  transactions,
-  selectedMonth,
-  onPrevMonth,
-  onNextMonth,
   isCurrentMonth,
   formatCurrency,
   chartData,
@@ -101,83 +94,27 @@ export function HomeScreen({
 }: HomeScreenProps) {
   return (
     <div className="space-y-4">
-      {/* Balance Hero Card */}
-      <div className="bg-gray-950 text-white p-6 rounded-[32px] relative overflow-hidden border border-white/5 shadow-xl shadow-black/35 bg-gradient-to-br from-[#0D0F12] via-[#14181E] to-[#0D1014]">
-        <div className="absolute -right-12 -top-12 w-32 h-32 bg-[#CFFF0F]/10 rounded-full blur-[40px] pointer-events-none" />
-        <div className="absolute -left-12 -bottom-12 w-32 h-32 bg-[#00F5FF]/5 rounded-full blur-[40px] pointer-events-none" />
-
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-bold font-display">
-              {isCurrentMonth ? 'Active Portfolio Balance' : 'Portfolio Balance'}
-            </p>
-            <h2 className="text-3xl font-extrabold tracking-tight mt-1 font-display">
-              {formatCurrency(totalBalanceToDisplay)}
-            </h2>
-          </div>
-          <span className="text-[10px] uppercase font-extrabold px-2.5 py-1 bg-[#CFFF0F] text-black rounded-lg tracking-wider">
-            IDR
-          </span>
+      {/* Statistik Mingguan */}
+      <section className="bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F] transition-all">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Statistik Mingguan</h3>
         </div>
-
-        {!isCurrentMonth && (
-          <p className="text-[11px] text-gray-400 font-medium mb-4 flex items-center gap-1">
-            <span>Saldo Awal Bulan:</span>
-            <span className="text-white font-semibold">{formatCurrency(startBalance)}</span>
-          </p>
-        )}
-
-        {/* Month selector inside balance card */}
-        <div className="flex items-center justify-between pt-4 border-t border-white/5">
-          <button onClick={onPrevMonth} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 cursor-pointer select-none">
-            <ArrowDownLeft size={14} className="rotate-45" />
-          </button>
-          <span className="font-extrabold text-xs tracking-widest text-white uppercase font-display">
-            {format(selectedMonth, 'MMMM yyyy', { locale: id })}
-          </span>
-          <button
-            onClick={onNextMonth}
-            disabled={isCurrentMonth}
-            className={cn('p-1.5 rounded-lg transition-colors cursor-pointer select-none', isCurrentMonth ? 'opacity-30 cursor-not-allowed text-gray-600' : 'hover:bg-white/10 text-gray-400')}
-          >
-            <ArrowUpRight size={14} className="rotate-45" />
-          </button>
-        </div>
-      </div>
-
-      {/* Income + Expense summary cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
-          <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-950/30 rounded-xl flex items-center justify-center">
-            <ArrowDownLeft size={16} className="text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Pemasukan</p>
-            <p className="text-sm font-extrabold text-gray-900 dark:text-white">{formatCurrency(monthlyIncome)}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
-          <div className="w-8 h-8 bg-red-100 dark:bg-red-950/30 rounded-xl flex items-center justify-center">
-            <ArrowUpRight size={16} className="text-red-500 dark:text-red-400" />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Pengeluaran</p>
-            <p className="text-sm font-extrabold text-gray-900 dark:text-white">{formatCurrency(monthlyExpense)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Weekly overview chart */}
-      <section className="bg-white dark:bg-[#13161A] p-6 rounded-[32px] border border-gray-100 dark:border-[#22272F]">
-        <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display mb-6">
-          Statistik Mingguan
-        </h3>
-        <div className="h-56 w-full">
+        <div className="h-56 w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} tabIndex={-1} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} tickFormatter={(v) => formatCurrency(v)} />
+              <XAxis
+                dataKey="name"
+                axisLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
+                tickLine={{ stroke: theme === 'dark' ? '#374151' : '#E5E7EB', strokeWidth: 1 }}
+                tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 500 }}
+                tickFormatter={(value) => formatCurrency(value)}
+              />
               <Tooltip
                 cursor={{ fill: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}
                 contentStyle={{
@@ -185,12 +122,15 @@ export function HomeScreen({
                   border: '1px solid',
                   borderColor: theme === 'dark' ? '#22272F' : '#E2E8F0',
                   background: theme === 'dark' ? '#14181E' : '#FFFFFF',
+                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
                   color: theme === 'dark' ? '#FFFFFF' : '#000000',
+                  fontFamily: 'Outfit',
                 }}
                 formatter={(value: number, name: string) => {
                   if (value === 0) return ['', ''];
                   return [formatCurrency(value), name === 'income' ? 'Pemasukan' : 'Pengeluaran'];
                 }}
+                labelFormatter={(label: string) => label}
               />
               <Bar dataKey="income" fill={theme === 'dark' ? '#CFFF0F' : '#65A30D'} radius={[4, 4, 0, 0]} barSize={10} />
               <Bar dataKey="expense" fill={theme === 'dark' ? '#FF5E5E' : '#DC2626'} radius={[4, 4, 0, 0]} barSize={10} />
@@ -199,9 +139,9 @@ export function HomeScreen({
         </div>
       </section>
 
-      {/* Trend widgets */}
+      {/* Weekly Trend Widgets */}
       <div className="grid grid-cols-2 gap-3">
-        {([ 
+        {([
           { key: 'income', title: 'Pemasukan', data: weeklyTrend.income, color: '#10b981', fillId: 'sparkIncome' },
           { key: 'expense', title: 'Pengeluaran', data: weeklyTrend.expense, color: '#ef4444', fillId: 'sparkExpense' },
         ] as const).map(({ key, title, data, color, fillId }) => {
@@ -209,15 +149,21 @@ export function HomeScreen({
           const TrendIcon = isUp ? TrendingUp : TrendingDown;
           const statusColor = data.percent === null
             ? 'text-gray-400 dark:text-gray-500'
-            : data.isGood ? 'text-emerald-500' : 'text-rose-500';
+            : data.isGood
+              ? 'text-emerald-500 dark:text-emerald-400'
+              : 'text-rose-500 dark:text-rose-400';
           return (
-            <div key={key} className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F]">
+            <div key={key} className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] transition-colors duration-200">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-display">{title}</span>
+                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">{title}</span>
                 <TrendIcon size={14} className={statusColor} />
               </div>
-              <p className={cn('text-lg font-extrabold', statusColor)}>
-                {data.percent === null ? 'Baru' : `${data.percent >= 0 ? '+' : ''}${Math.round(Math.abs(data.percent) > 100 ? (data.percent >= 0 ? 100 : -100) : data.percent)}%`}
+              <p className={cn("text-lg font-extrabold", statusColor)}>
+                {data.percent === null
+                  ? 'Baru'
+                  : Math.abs(data.percent) > 100
+                    ? `${data.percent >= 0 ? '+' : '-'}100%+`
+                    : `${data.percent >= 0 ? '+' : ''}${Math.round(data.percent)}%`}
               </p>
               <div className="h-10 -mx-1 mt-1">
                 <ResponsiveContainer width="100%" height="100%">
@@ -232,46 +178,98 @@ export function HomeScreen({
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-[9px] text-gray-400 text-center mt-1">vs kemarin</p>
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">vs kemarin</p>
             </div>
           );
         })}
       </div>
 
-      {/* Weather widget (secondary) */}
+      {/* Weather Widget */}
       <div className="rounded-[24px] overflow-hidden">
         {weatherStatus === 'loading' && (
-          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
+          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
             <Loader2 size={20} className="animate-spin text-gray-400" />
             <span className="text-xs text-gray-400">Mengambil data cuaca...</span>
           </div>
         )}
         {weatherStatus === 'denied' && (
-          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
+          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
             <MapPin size={20} className="text-gray-400" />
             <span className="text-xs text-gray-400">Izinkan akses lokasi untuk melihat cuaca</span>
           </div>
         )}
         {weatherStatus === 'error' && (
-          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
+          <div className="bg-white dark:bg-[#13161A] p-4 rounded-[24px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3 transition-colors duration-200">
             <Cloud size={20} className="text-gray-400" />
             <span className="text-xs text-gray-400">Cuaca tidak tersedia saat ini</span>
           </div>
         )}
         {weatherStatus === 'success' && weatherData && (() => {
-          const { gradient, icon: WeatherIcon, iconColor, label } = getWeatherTheme(weatherData.code, weatherData.isDay);
+          const { gradient, icon: WeatherIcon, iconColor, label, category } = getWeatherTheme(weatherData.code, weatherData.isDay);
           return (
-            <div className={cn('relative bg-gradient-to-r p-4 text-white overflow-hidden flex items-center justify-between', gradient)}>
-              <div className="relative flex flex-col gap-1 z-10">
+            <div className={cn("relative bg-gradient-to-r p-4 text-white overflow-hidden flex items-center justify-between", gradient)}>
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {category === 'cerah' && weatherData.isDay && (
+                  <>
+                    <div className="absolute -right-4 top-0 w-32 h-32 rounded-full bg-white/10" />
+                    <div className="absolute right-12 -top-4 w-24 h-24 rounded-full bg-white/10" />
+                    <div className="absolute left-20 bottom-0 w-40 h-24 rounded-t-full bg-white/10 translate-y-12" />
+                  </>
+                )}
+                {category === 'cerah' && !weatherData.isDay && (
+                  <>
+                    <div className="absolute right-8 -top-8 w-24 h-24 rounded-full bg-[#E5D770]" />
+                    <div className="absolute right-2 -top-14 w-36 h-36 rounded-full border-[16px] border-white/5" />
+                    <div className="absolute -right-4 -top-20 w-48 h-48 rounded-full border-[16px] border-white/5" />
+                  </>
+                )}
+                {category === 'berawan' && (
+                  <div className="absolute right-0 top-0 w-[120%] h-full">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-20">
+                      <path fill="white" d="M0,0 Q25,30 50,0 T100,0 L100,100 L0,100 Z" />
+                    </svg>
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-10 translate-y-4">
+                      <path fill="white" d="M0,20 Q30,50 60,10 T100,20 L100,100 L0,100 Z" />
+                    </svg>
+                  </div>
+                )}
+                {(category === 'hujan' || category === 'badai') && (
+                  <div className="absolute inset-0 flex gap-3 justify-end pr-8 opacity-20 overflow-hidden">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <div key={i} className="w-[1px] h-[150%] bg-white -translate-y-4" style={{ transform: 'rotate(25deg)' }} />
+                    ))}
+                  </div>
+                )}
+                {category === 'salju' && weatherData.isDay && (
+                  <div className="absolute left-0 bottom-0 w-full h-full">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-20">
+                      <path fill="white" d="M0,100 L0,50 Q25,20 50,50 T100,30 L100,100 Z" />
+                    </svg>
+                  </div>
+                )}
+                {category === 'salju' && !weatherData.isDay && (
+                  <div className="absolute inset-0 opacity-80">
+                    <div className="absolute left-1/4 top-1/4 w-1.5 h-1.5 bg-white rounded-full" />
+                    <div className="absolute left-1/2 top-1/3 w-1 h-1 bg-white rounded-full" />
+                    <div className="absolute left-3/4 top-1/4 w-2 h-2 bg-white rounded-full opacity-70" />
+                    <div className="absolute right-8 bottom-6 w-1.5 h-1.5 bg-white rounded-full" />
+                    <div className="absolute left-2/3 top-1/2 w-3 h-3 bg-white/40 rotate-45" />
+                    <div className="absolute right-12 top-1/3 w-2 h-2 bg-white/30 rotate-12" />
+                  </div>
+                )}
+              </div>
+              <div className="relative flex flex-col justify-between h-full z-10 pl-1">
                 <div className="flex items-center gap-1.5">
                   <WeatherIcon size={14} className={iconColor} strokeWidth={2.5} />
-                  <span className="text-[13px] font-medium">{label}</span>
+                  <span className="text-[13px] font-medium tracking-wide">{label}</span>
                 </div>
-                <span className="text-[34px] font-normal leading-none">{weatherData.temp}°</span>
+                <div className="mt-1">
+                  <span className="text-[34px] font-normal leading-none tracking-tight">{weatherData.temp}°</span>
+                </div>
               </div>
-              <div className="relative flex flex-col items-end text-right z-10 gap-[2px]">
-                <span className="text-lg font-medium">{format(new Date(), 'HH:mm')}</span>
-                <span className="text-[9px] opacity-90 uppercase tracking-widest font-medium">
+              <div className="relative flex flex-col items-end text-right z-10 pr-1 gap-[2px]">
+                <span className="text-lg font-medium leading-tight">{format(new Date(), 'HH:mm')}</span>
+                <span className="text-[9px] opacity-90 uppercase tracking-widest font-medium mt-1">
                   {format(new Date(), 'EEE MM-dd', { locale: enUS })}
                 </span>
                 <span className="text-[10px] opacity-90 font-medium">{locationName || '—'}</span>

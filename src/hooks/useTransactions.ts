@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Transaction } from '../types';
-import { db } from '../offlineDb';
+import { db, flushQueue } from '../offlineDb';
 import { AppUser } from '../auth';
 import { INITIAL_TRANSACTIONS, CATEGORIES_BY_TYPE, CATEGORY_MIGRATION_MAP } from '../constants';
 
@@ -46,7 +46,28 @@ export function useTransactions(user: AppUser | null, authReady: boolean) {
     db.getTransactions(user.uid).then(setTransactions);
 
     const unsubscribe = db.subscribeToTransactions(user.uid, setTransactions);
-    return unsubscribe;
+
+    // Android fix: Supabase Realtime WebSocket can drop when app goes to background
+    // (screen off / app switch). Re-fetch when the app returns to foreground or
+    // network comes back, so the UI doesn't get stuck showing stale "belum tersinkron".
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        db.getTransactions(user.uid).then(setTransactions);
+        flushQueue(user.uid);
+      }
+    };
+    const handleOnline = () => {
+      db.getTransactions(user.uid).then(setTransactions);
+      flushQueue(user.uid);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [user]);
 
   // Category migration (runs silently in background, once per id per session)
