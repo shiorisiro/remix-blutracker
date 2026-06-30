@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { signInWithEmail, signUpWithEmail } from '../auth';
 
-interface LoginPageProps {
+interface LoginScreenProps {
     onGoogleSignIn: () => Promise<void>;
     googleError?: string | null;
 }
 
-export const LoginPage = ({ onGoogleSignIn, googleError }: LoginPageProps) => {
+export const LoginScreen = ({ onGoogleSignIn, googleError }: LoginScreenProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
