@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, Mic, Loader2, Check, ArrowDownLeft, ArrowUpRight, Wallet } from 'lucide-react';
+import { X, Camera, Mic, Loader2, Check, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface TransactionModalProps {
@@ -123,20 +123,16 @@ export function TransactionModal({
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-2xl flex items-center justify-center",
-                newType === 'income' ? "bg-[#CFFF0F]/10 text-[#CFFF0F]" :
-                newType === 'expense' ? "bg-[#FF5E5E]/10 text-[#FF5E5E]" :
-                "bg-orange-500/10 text-orange-500"
+                newType === 'income' ? "bg-[#CFFF0F]/10 text-[#CFFF0F]" : "bg-[#FF5E5E]/10 text-[#FF5E5E]"
               )}>
-                {newType === 'income' ? <ArrowDownLeft size={20} /> :
-                 newType === 'expense' ? <ArrowUpRight size={20} /> :
-                 <Wallet size={20} />}
+                {newType === 'income' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-800 dark:text-white">
                   {editingTransaction ? 'Edit Transaksi' : 'Tambah Transaksi'}
                 </h2>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
-                  {newType === 'income' ? 'Pemasukan' : newType === 'expense' ? 'Pengeluaran' : 'Hutang/Piutang'}
+                  {newType === 'income' ? 'Pemasukan' : 'Pengeluaran'}
                 </p>
               </div>
             </div>
@@ -152,7 +148,7 @@ export function TransactionModal({
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Type Selector */}
             <div className="flex p-1 bg-gray-100 dark:bg-[#14181E] rounded-xl">
-              {(['expense', 'income', 'debt'] as const).map((type) => (
+              {(['expense', 'income'] as const).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -164,7 +160,7 @@ export function TransactionModal({
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
                   )}
                 >
-                  {type === 'income' ? 'Pemasukan' : type === 'expense' ? 'Pengeluaran' : 'Hutang'}
+                  {type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
                 </button>
               ))}
             </div>
@@ -281,32 +277,6 @@ export function TransactionModal({
                 ))}
               </div>
             </div>
-
-            {/* Debt Type (only for debt) */}
-            {newType === 'debt' && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                  Tipe Hutang
-                </label>
-                <div className="flex p-1 bg-gray-100 dark:bg-[#14181E] rounded-xl">
-                  {(['borrow', 'lend'] as const).map((dt) => (
-                    <button
-                      key={dt}
-                      type="button"
-                      onClick={() => setNewDebtType(dt)}
-                      className={cn(
-                        "flex-1 py-2 text-[11px] font-bold rounded-lg transition-all",
-                        newDebtType === dt
-                          ? "bg-white dark:bg-[#0D0F12] text-gray-950 dark:text-[#CFFF0F] shadow-sm"
-                          : "text-gray-500 dark:text-gray-400"
-                      )}
-                    >
-                      {dt === 'borrow' ? 'Pinjam (Piutang)' : 'Meminjami (Utang)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Voice Input Button */}
             <button

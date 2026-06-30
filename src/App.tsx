@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Wallet, History, TrendingUp, User as UserIcon, Mic, Camera,
-  Check, Loader2, X, AlertCircle, Sparkles, Bot, CreditCard,
+  Check, Loader2, X, AlertCircle, Sparkles, Bot,
   ArrowDownLeft, ArrowUpRight, Trash2, Download,
-  Search, Edit2, Sun, Moon,
+  Edit2, Sun, Moon,
   Utensils, ShoppingBag, Bus, Fuel, HeartPulse, GraduationCap,
   MonitorSmartphone, Play, Wrench, Scissors, Package, Briefcase,
   Store, Award, Code2, Landmark, Gift, ArrowDownToLine, Coins,
@@ -114,7 +114,6 @@ export default function App() {
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'home' | 'stats' | 'history' | 'profile'>('home');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -122,7 +121,6 @@ export default function App() {
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [isAiAnalysisModalOpen, setIsAiAnalysisModalOpen] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
@@ -334,14 +332,6 @@ export default function App() {
 
   const filteredMonthlyIncome = useMemo(() => filteredTransactions.filter((t) => t.type === 'income' && isSameMonth(parseISO(t.date), selectedMonth)).reduce((a, t) => a + t.amount, 0), [filteredTransactions, selectedMonth]);
   const filteredMonthlyExpense = useMemo(() => filteredTransactions.filter((t) => t.type === 'expense' && isSameMonth(parseISO(t.date), selectedMonth)).reduce((a, t) => a + t.amount, 0), [filteredTransactions, selectedMonth]);
-
-  const debtStats = useMemo(() => {
-    const active = transactions.filter((t) => t.type === 'debt' && !t.isSettled);
-    return {
-      borrow: active.filter((t) => t.debtType === 'borrow').reduce((a, t) => a + t.amount, 0),
-      lend: active.filter((t) => t.debtType === 'lend').reduce((a, t) => a + t.amount, 0),
-    };
-  }, [transactions]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSaveName = async () => {
@@ -1032,35 +1022,6 @@ export default function App() {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="bg-white dark:bg-[#13161A] p-6 rounded-3xl border border-gray-100 dark:border-[#22272F]">
                 <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{aiAnalysisResult}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Debt modal */}
-      <AnimatePresence>
-        {isDebtModalOpen && (
-          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25 }} className="fixed inset-0 bg-gray-50 dark:bg-[#08090B] z-[150] flex flex-col">
-            <header className="p-6 bg-white dark:bg-[#0D0F12] border-b border-gray-100 dark:border-[#22272F] flex justify-between items-center">
-              <div className="flex items-center gap-3"><CreditCard size={20} className="text-orange-500" /><h2 className="text-lg font-bold text-gray-800 dark:text-white">Hutang & Piutang</h2></div>
-              <button onClick={() => setIsDebtModalOpen(false)} className="p-2 bg-gray-100 dark:bg-[#14181E] rounded-full"><X size={18} /></button>
-            </header>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-3xl border border-orange-100 dark:border-orange-950/40">
-                  <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Pinjam</p>
-                  <p className="text-xl font-black text-orange-700 dark:text-orange-400">{formatCurrency(debtStats.borrow)}</p>
-                </div>
-                <div className="bg-sky-50 dark:bg-sky-950/20 p-4 rounded-3xl border border-sky-100 dark:border-sky-950/40">
-                  <p className="text-[10px] font-bold text-sky-600 uppercase mb-1">Pinjamkan</p>
-                  <p className="text-xl font-black text-sky-700 dark:text-sky-400">{formatCurrency(debtStats.lend)}</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {transactions.filter((t) => t.type === 'debt').map((t) => (
-                  <TransactionItem key={t.id} transaction={t} onDelete={() => setTransactionToDelete(t)} onEdit={() => handleEditClick(t)} onToggleSettled={() => handleToggleSettled(t)} formatCurrency={formatCurrency} isRevealed={revealedId === t.id} onReveal={(r) => handleReveal(t.id, r)} />
-                ))}
               </div>
             </div>
           </motion.div>
