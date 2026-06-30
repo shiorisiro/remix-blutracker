@@ -736,55 +736,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 flex-1 justify-end">
-                <AnimatePresence>
-                  {isSearchOpen && (
-                    <motion.div
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: '100%', opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      className="relative flex-1"
-                    >
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Cari transaksi..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-4 pr-10 py-1.5 bg-gray-50 dark:bg-[#14181E] rounded-xl text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#CFFF0F] transition-all text-sm"
-                      />
-                      <button
-                        onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white"
-                      >
-                        <X size={15} />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {!isSearchOpen && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setIsDebtModalOpen(true)}
-                      className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
-                      title="Hutang & Piutang"
-                    >
-                      <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.35)] transform hover:scale-110 active:scale-95 transition-all inline-block">
-                        <CreditCard size={18} />
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => setIsSearchOpen(true)}
-                      className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 rounded-xl transition-all flex items-center justify-center text-gray-700 dark:text-white cursor-pointer"
-                    >
-                      <span className="filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_3px_10px_rgba(255,255,255,0.35)] transform hover:scale-110 active:scale-95 transition-all inline-block">
-                        <Search size={18} />
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Balance Card - original micro grid layout (income/expense INSIDE card) */}
