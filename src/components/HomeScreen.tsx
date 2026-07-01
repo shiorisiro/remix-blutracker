@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ArrowDownLeft, ArrowUpRight, Cloud, MapPin, TrendingUp, TrendingDown, Loader2,
+  ArrowDownLeft, ArrowUpRight, Cloud, MapPin, TrendingUp, TrendingDown, Loader2, Sun,
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -98,8 +98,8 @@ export function HomeScreen({
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Statistik Mingguan</h3>
         </div>
-        <div className="h-56 w-full relative">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full" style={{ minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height={224} minWidth={0}>
             <BarChart data={chartData} tabIndex={-1} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
               <XAxis
@@ -164,8 +164,8 @@ export function HomeScreen({
                     ? `${data.percent >= 0 ? '+' : '-'}100%+`
                     : `${data.percent >= 0 ? '+' : ''}${Math.round(data.percent)}%`}
               </p>
-              <div className="h-10 -mx-1 mt-1">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="-mx-1 mt-1" style={{ minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height={40} minWidth={0}>
                   <AreaChart data={data.sparkline.map((v: number) => ({ v }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">

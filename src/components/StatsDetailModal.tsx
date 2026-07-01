@@ -273,7 +273,7 @@ export function StatsDetailModal({
                 /* === MODE HARI INI: Area Chart per jam === */
                 <div className="space-y-6">
                   <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <AreaChart data={selectedMonthHourlyData} tabIndex={-1}>
                         <defs>
                           <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
@@ -325,7 +325,7 @@ export function StatsDetailModal({
                 /* === MODE BULANAN: Line Chart per kategori === */
                 <div className="space-y-6">
                   <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <LineChart data={monthlyCategoryLineData} tabIndex={-1}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#22272F" />
                         <XAxis 
@@ -403,7 +403,7 @@ export function StatsDetailModal({
                 <h3 className="font-extrabold text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest font-display">Perbandingan Harian</h3>
               </div>
               <div className="h-56 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={chartData} tabIndex={-1} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#22272F' : '#F1F5F9'} />
                     <XAxis
@@ -450,7 +450,7 @@ export function StatsDetailModal({
                 </h3>
               </div>
               <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={monthlyWeeklyComparisonData} tabIndex={-1}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#22272F" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
@@ -469,7 +469,7 @@ export function StatsDetailModal({
                 Analisis Saldo & Arus Kas - {format(selectedMonth, 'MMMM yyyy', { locale: id })}
               </h3>
               <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <ComposedChart data={selectedMonthCashFlowData} tabIndex={-1}>
                     <defs>
                       <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
@@ -577,7 +577,7 @@ export function StatsDetailModal({
               </div>
 
               <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   {statsView === 'daily' ? (
                     <AreaChart data={selectedMonthHourlyData} tabIndex={-1}>
                       <defs>
