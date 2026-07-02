@@ -1,6 +1,7 @@
 import React from 'react';
 import {
-  ArrowDownLeft, ArrowUpRight, Cloud, MapPin, TrendingUp, TrendingDown, Loader2, Sun,
+  ArrowDownLeft, ArrowUpRight, Cloud, CloudSun, CloudFog, CloudRain, CloudLightning, CloudSnow,
+  MapPin, TrendingUp, TrendingDown, Loader2, Sun, Moon,
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
