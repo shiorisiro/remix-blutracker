@@ -62,6 +62,88 @@ function getWeatherTheme(code: number | undefined, isDay: boolean) {
   return { ...variant, label, category };
 }
 
+const WEATHER_BG: Record<WeatherCategory, { day: string; night: string }> = {
+  cerah:         { day: '#E05548',                                         night: '#0D1B4A' },
+  cerah_berawan: { day: 'linear-gradient(155deg,#2B5BB0,#4A8ADA)',        night: 'linear-gradient(155deg,#182240,#263458)' },
+  berawan:       { day: 'linear-gradient(155deg,#2B5BB0,#4A8ADA)',        night: 'linear-gradient(155deg,#182240,#263458)' },
+  berkabut:      { day: 'linear-gradient(155deg,#5A6372,#7A8390)',        night: 'linear-gradient(155deg,#3A3E50,#4E5265)' },
+  hujan:         { day: 'linear-gradient(155deg,#3C4A58,#4E5E72)',        night: 'linear-gradient(155deg,#2A3445,#3A4458)' },
+  badai:         { day: 'linear-gradient(155deg,#3A3C46,#565662)',        night: 'linear-gradient(155deg,#282A34,#404048)' },
+  salju:         { day: 'linear-gradient(155deg,#3A5062,#4E6878)',        night: 'linear-gradient(155deg,#283848,#384858)' },
+};
+
+function WeatherIllustration({ category, isDay }: { category: WeatherCategory; isDay: boolean }) {
+  const cx = 390, cy = 84;
+
+  const rain = Array.from({ length: 20 }, (_, i) => (
+    <line key={i} x1={i * 27 - 15} y1={-5} x2={i * 27 + 42} y2={175}
+      stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" strokeLinecap="round" />
+  ));
+
+  const wave = (y: number, fill: string, op = 1) => (
+    <path key={y} fill={fill} fillOpacity={op}
+      d={`M-20,${y} C60,${y - 26} 160,${y + 20} 270,${y - 8} S420,${y + 22} 520,${y} L520,170 L-20,170 Z`} />
+  );
+
+  return (
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 168" preserveAspectRatio="xMidYMid slice">
+      {category === 'cerah' && isDay && <>
+        <circle cx={cx} cy={cy} r={175} fill="rgba(255,255,255,0.10)" />
+        <circle cx={cx} cy={cy} r={138} fill="#E87848" />
+        <circle cx={cx} cy={cy} r={102} fill="#EE9030" />
+        <circle cx={cx} cy={cy} r={68}  fill="#F5B428" />
+        <circle cx={cx} cy={cy} r={36}  fill="#FFD830" />
+      </>}
+
+      {category === 'cerah' && !isDay && <>
+        <circle cx={cx} cy={cy} r={175} fill="rgba(255,255,255,0.03)" />
+        <circle cx={cx} cy={cy} r={138} fill="rgba(255,255,255,0.06)" />
+        <circle cx={cx} cy={cy} r={102} fill="#1A3A8F" />
+        <circle cx={cx} cy={cy} r={60}  fill="#E8961E" />
+        <circle cx={cx - 22} cy={cy - 18} r={50} fill="#0D1B4A" />
+      </>}
+
+      {(category === 'berawan' || category === 'cerah_berawan') && <>
+        {isDay
+          ? <circle cx={455} cy={-12} r={72} fill="#FFD540" />
+          : <circle cx={460} cy={-10} r={66} fill="#E8961E" />}
+        {wave(88,  isDay ? 'rgba(90,135,205,0.5)'  : 'rgba(55,72,100,0.55)')}
+        {wave(110, isDay ? 'rgba(72,118,190,0.55)' : 'rgba(42,58,85,0.65)')}
+        {wave(132, isDay ? 'rgba(52,100,175,0.5)'  : 'rgba(32,48,72,0.55)')}
+      </>}
+
+      {category === 'berkabut' && <>
+        {wave(80,  'rgba(180,188,196,0.25)')}
+        {wave(105, 'rgba(160,170,178,0.30)')}
+        {wave(130, 'rgba(142,152,162,0.35)')}
+      </>}
+
+      {category === 'hujan' && <>
+        {rain}
+        {wave(102, '#3A5560', 0.55)}
+        {wave(126, '#2D4852', 0.65)}
+      </>}
+
+      {category === 'badai' && <>
+        <circle cx={255} cy={38} r={56} fill="rgba(80,80,92,0.45)" />
+        <circle cx={338} cy={55} r={48} fill="rgba(72,72,84,0.45)" />
+        <circle cx={195} cy={52} r={42} fill="rgba(76,76,88,0.40)" />
+        {rain}
+        <polygon points="296,12 262,86 290,80 252,150 338,64 307,72" fill="#F5D030" />
+      </>}
+
+      {category === 'salju' && <>
+        {[52,132,208,292,372,438,92,172,252,332,412].map((x, i) => (
+          <text key={i} x={x} y={14 + (i % 5) * 30} fontSize="13"
+            fill="rgba(255,255,255,0.45)" textAnchor="middle">❄</text>
+        ))}
+        {wave(114, 'rgba(200,215,228,0.35)')}
+        {wave(135, 'rgba(185,200,215,0.40)')}
+      </>}
+    </svg>
+  );
+}
+
 interface HomeScreenProps {
   theme: string;
   selectedMonth: Date;
@@ -185,7 +267,7 @@ export function HomeScreen({
       </div>
 
 
-      {/* Weather Widget - Rich Illustrated Card */}
+      {/* Weather Widget */}
       <div className="rounded-[28px] overflow-hidden">
         {weatherStatus === 'loading' && (
           <div className="bg-white dark:bg-[#13161A] p-5 rounded-[28px] border border-gray-100 dark:border-[#22272F] flex items-center gap-3">
@@ -208,163 +290,22 @@ export function HomeScreen({
         {weatherStatus === 'success' && weatherData && (() => {
           const { label, category } = getWeatherTheme(weatherData.code, weatherData.isDay);
           const isDay = weatherData.isDay;
-          const isRain = category === 'hujan' || category === 'badai';
-          const isCloudy = category === 'berawan' || category === 'berkabut' || category === 'cerah_berawan';
-          const isSnow = category === 'salju';
-
-          const skyGrad = isDay
-            ? isRain ? 'from-[#4a5568] via-[#6b7280] to-[#9ca3af]'
-              : isCloudy ? 'from-[#5B7FA6] via-[#7BA3C8] to-[#A8C5DE]'
-              : 'from-[#1a7abf] via-[#3b9cd9] to-[#f97316]'
-            : isRain ? 'from-[#1a1f2e] via-[#252d3d] to-[#374151]'
-              : 'from-[#0a0e1a] via-[#111827] to-[#1e2942]';
-
-          const groundColor = isDay
-            ? isRain ? '#4a5568' : isSnow ? '#e2e8f0' : '#2d5a1b'
-            : isRain ? '#1a2035' : isSnow ? '#c7d2e0' : '#1a2535';
-          const houseColor = isDay ? '#c0392b' : '#8B1A1A';
-          const roofColor = isDay ? '#922b21' : '#5D1010';
-          const wallColor = isDay ? '#f5cba7' : '#d4a574';
-          const windowColor = isDay ? '#f9e4b7' : '#ffd700';
-          const treeColor = isDay ? (isRain ? '#2d5016' : '#27ae60') : '#1a3a1a';
-          const treeTrunk = isDay ? '#795548' : '#4a2d1a';
-
+          const bg = WEATHER_BG[category][isDay ? 'day' : 'night'];
+          const bgIsGrad = bg.startsWith('linear');
           return (
-            <div className="relative overflow-hidden rounded-[28px] h-[200px]">
-              {/* Sky */}
-              <div className={`absolute inset-0 bg-gradient-to-b ${skyGrad}`} />
-
-              {/* Stars at night */}
-              {!isDay && !isRain && (
-                <div className="absolute inset-0 pointer-events-none">
-                  {[[12,12],[28,8],[45,18],[62,6],[78,14],[90,22],[18,28],[55,10],[70,30],[85,8],[35,22],[50,32]].map(([x,y],i) => (
-                    <div key={i} className="absolute rounded-full bg-white"
-                      style={{ left:`${x}%`, top:`${y}%`, width: i%3===0?3:2, height: i%3===0?3:2, opacity: 0.5+i%4*0.1 }} />
-                  ))}
-                </div>
-              )}
-
-              {/* SUN — always for cerah, day OR night */}
-              {category === 'cerah' && (
-                <div className="absolute" style={{ right:'14%', top: isDay?'12%':'8%' }}>
-                  <div className="absolute rounded-full" style={{ width:64, height:64,
-                    background: isDay
-                      ? 'radial-gradient(circle, rgba(251,191,36,0.5) 0%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%)',
-                    transform:'translate(-25%,-25%)' }} />
-                  <div className="relative rounded-full" style={{ width:38, height:38,
-                    background: isDay
-                      ? 'radial-gradient(circle at 35% 35%, #fef08a, #fbbf24)'
-                      : 'radial-gradient(circle at 35% 35%, #fde68a, #f59e0b)' }} />
-                </div>
-              )}
-
-              {/* Moon — non-cerah night */}
-              {!isDay && category !== 'cerah' && (
-                <div className="absolute" style={{ right:'16%', top:'10%' }}>
-                  <div className="relative" style={{ width:32, height:32 }}>
-                    <div className="absolute inset-0 rounded-full bg-[#f5e6a3]" />
-                    <div className="absolute rounded-full bg-[#1e2942]" style={{ width:26, height:26, top:-4, right:-4 }} />
+            <div className="relative overflow-hidden rounded-[28px]" style={{ height: 168, ...(bgIsGrad ? { background: bg } : { backgroundColor: bg }) }}>
+              <WeatherIllustration category={category} isDay={isDay} />
+              <div className="absolute inset-0 flex flex-col justify-between p-5">
+                <div className="flex justify-between items-start">
+                  <span className="text-[13px] font-semibold text-white/90 drop-shadow">{label}</span>
+                  <div className="text-right">
+                    <div className="text-[32px] font-bold text-white leading-none drop-shadow">{format(new Date(), 'HH:mm')}</div>
+                    <div className="text-[10px] text-white/70 mt-0.5">{format(new Date(), 'EEE MM-dd', { locale: enUS })}</div>
                   </div>
                 </div>
-              )}
-
-              {/* Clouds */}
-              {(isCloudy || isRain) && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute" style={{ right:'8%', top:'18%' }}>
-                    <div className="relative">
-                      <div className="absolute rounded-full bg-white/80" style={{ width:48, height:30, top:8, left:0 }} />
-                      <div className="absolute rounded-full bg-white/80" style={{ width:36, height:26, top:12, left:20 }} />
-                      <div className="absolute rounded-full bg-white/90" style={{ width:32, height:22, top:0, left:10 }} />
-                    </div>
-                  </div>
-                  <div className="absolute" style={{ right:'38%', top:'10%' }}>
-                    <div className="relative">
-                      <div className="absolute rounded-full bg-white/60" style={{ width:32, height:20, top:4, left:0 }} />
-                      <div className="absolute rounded-full bg-white/60" style={{ width:22, height:18, top:0, left:8 }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Partly cloudy cloud */}
-              {category === 'cerah_berawan' && (
-                <div className="absolute" style={{ right:'6%', top:'22%' }}>
-                  <div className="relative">
-                    <div className="absolute rounded-full bg-white/70" style={{ width:44, height:28, top:6, left:0 }} />
-                    <div className="absolute rounded-full bg-white/70" style={{ width:30, height:24, top:0, left:12 }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Rain */}
-              {isRain && (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                  {Array.from({length:14}).map((_,i) => (
-                    <div key={i} className="absolute bg-blue-200/50 rounded-full"
-                      style={{ width:1.5, height:10, left:`${8+i*6.5}%`, top:`${30+i%4*8}%`, transform:'rotate(15deg)' }} />
-                  ))}
-                </div>
-              )}
-
-              {/* Snow */}
-              {isSnow && (
-                <div className="absolute inset-0 pointer-events-none">
-                  {[15,30,50,65,80].map((x,i) => (
-                    <div key={i} className="absolute text-white/70 text-sm" style={{ left:`${x}%`, top:`${20+i*8}%` }}>❄</div>
-                  ))}
-                </div>
-              )}
-
-              {/* Ground */}
-              <div className="absolute bottom-0 left-0 right-0"
-                style={{ height:'45%', background: groundColor, borderRadius:'40% 40% 0 0' }} />
-
-              {/* Trees left */}
-              <svg className="absolute" style={{ bottom:'32%', left:'6%', width:28, height:55 }} viewBox="0 0 28 55">
-                <rect x="11" y="38" width="6" height="17" fill={treeTrunk} />
-                <polygon points="14,0 28,38 0,38" fill={treeColor} />
-              </svg>
-              <svg className="absolute" style={{ bottom:'32%', left:'18%', width:22, height:44 }} viewBox="0 0 22 44">
-                <rect x="8" y="30" width="5" height="14" fill={treeTrunk} />
-                <polygon points="11,0 22,30 0,30" fill={treeColor} />
-              </svg>
-
-              {/* House */}
-              <svg className="absolute" style={{ bottom:'30%', left:'50%', transform:'translateX(-50%)', width:80, height:75 }} viewBox="0 0 80 75">
-                <polygon points="40,2 76,32 4,32" fill={roofColor} />
-                <rect x="8" y="31" width="64" height="44" fill={wallColor} />
-                <rect x="30" y="52" width="20" height="23" rx="10" fill={isDay?'#8B6914':'#5a3e0a'} />
-                <rect x="10" y="38" width="18" height="14" rx="2" fill={windowColor} />
-                <rect x="52" y="38" width="18" height="14" rx="2" fill={windowColor} />
-                <line x1="19" y1="38" x2="19" y2="52" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
-                <line x1="10" y1="45" x2="28" y2="45" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
-                <line x1="61" y1="38" x2="61" y2="52" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
-                <line x1="52" y1="45" x2="70" y2="45" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
-              </svg>
-
-              {/* Tree right */}
-              <svg className="absolute" style={{ bottom:'32%', right:'6%', width:28, height:55 }} viewBox="0 0 28 55">
-                <rect x="11" y="38" width="6" height="17" fill={treeTrunk} />
-                <polygon points="14,0 28,38 0,38" fill={treeColor} />
-              </svg>
-
-              {/* Info overlay */}
-              <div className="absolute bottom-0 left-0 right-0 px-5 py-4 flex items-end justify-between">
-                <div>
-                  <div className="text-[42px] font-light text-white leading-none drop-shadow-lg">{weatherData.temp}°</div>
-                  <div className="text-[11px] text-white/80 font-medium mt-1">{label}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[15px] font-semibold text-white leading-tight drop-shadow">{format(new Date(), 'HH:mm')}</div>
-                  <div className="text-[9px] text-white/70 uppercase tracking-widest mt-0.5">{format(new Date(), 'EEE, dd MMM', { locale: enUS })}</div>
-                  {locationName && (
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <MapPin size={9} className="text-white/60" />
-                      <span className="text-[9px] text-white/70">{locationName}</span>
-                    </div>
-                  )}
+                <div className="flex justify-between items-end">
+                  <span className="text-[52px] font-bold text-white leading-none drop-shadow">{weatherData.temp}°</span>
+                  {locationName && <span className="text-[13px] font-semibold text-white/90 drop-shadow">{locationName}</span>}
                 </div>
               </div>
             </div>
